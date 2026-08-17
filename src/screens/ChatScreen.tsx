@@ -8,20 +8,21 @@ import { MessageBubble } from '../components/MessageBubble';
 import { ChatInput } from '../components/ChatInput';
 import { ModelBar } from '../components/ModelBar';
 import { colors, spacing, fontSizes } from '../theme';
+import { getAgent, MULTI_AGENT_PIPELINE, buildPipelinePrompt } from '../utils/agents';
 import {
-  getAgent, MULTI_AGENT_PIPELINE, buildPipelinePrompt,
-} from '../utils/agents';
-import {
-  loadMemories, getRelevantMemories, buildMemoryContext,
-  extractFactsFromUserMessage, categoriseFact, addMemory,
+  loadMemories, initSeedMemories,
+  getRelevantMemories, buildMemoryContext, markMemoriesUsed,
+  learnFromExchange,
 } from '../utils/memory';
 
+// ── Prompt builder ─────────────────────────────────────────────────────────────
+
 const buildChatMLPrompt = (
-  messages: Array<{ role: string; content: string }>,
+  history: Array<{ role: string; content: string }>,
   systemPrompt: string,
 ): string => {
   let p = `<|im_start|>system\n${systemPrompt}<|im_end|>\n`;
-  for (const m of messages) {
+  for (const m of history) {
     if (m.role === 'user') {
       p += `<|im_start|>user\n${m.content}<|im_end|>\n<|im_start|>assistant\n`;
     } else if (m.role === 'assistant') {
@@ -30,6 +31,61 @@ const buildChatMLPrompt = (
   }
   return p;
 };
+
+/**
+ * Build clean conversation history:
+ * - Excludes system messages
+ * - Excludes isPipelineStep intermediate messages (they pollute context)
+ * - Only keeps FINAL synthesis responses as the 'assistant' turn
+ */
+const buildCleanHistory = (
+  messages: Message[],
+  newUserText: string,
+): Array<{ role: 'user' | 'assistant'; content: string }> => {
+  const clean: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+
+  for (const m of messages) {
+    if (m.role === 'system') continue;
+    if (m.isPipelineStep) continue; // skip intermediate agent steps
+    if (m.content.trim() === '') continue; // skip empty placeholders
+    clean.push({ role: m.role as 'user' | 'assistant', content: m.content });
+  }
+
+  // Add current user message
+  clean.push({ role: 'user', content: newUserText });
+  return clean;
+};
+
+/**
+ * Build conversation context string for multi-agent pipeline.
+ * Includes last N turns so agents know what was discussed before.
+ */
+const buildConversationContext = (messages: Message[], currentQuestion: string): string => {
+  const recent = messages
+    .filter((m) => m.role !== 'system' && !m.isPipelineStep && m.content.trim())
+    .slice(-8) // last 4 turns (8 messages)
+    .map((m) => (m.role === 'user' ? `User: ${m.content}` : `Assistant: ${m.content}`))
+    .join('\n\n');
+
+  return recent
+    ? `[Prior conversation context — this is essential for understanding the current question:\n${recent}\n]\n\nCurrent question: ${currentQuestion}`
+    : currentQuestion;
+};
+
+/**
+ * Build the recent context string for memory retrieval.
+ * Merges last few messages so "food?" finds "Hyderabad" from the previous turn.
+ */
+const buildRecentContextForMemory = (messages: Message[], currentQuery: string): string => {
+  const recent = messages
+    .filter((m) => m.role !== 'system' && !m.isPipelineStep && m.content.trim())
+    .slice(-6)
+    .map((m) => m.content)
+    .join(' ');
+  return `${recent} ${currentQuery}`;
+};
+
+// ── Component ──────────────────────────────────────────────────────────────────
 
 export const ChatScreen: React.FC = () => {
   const {
@@ -41,25 +97,47 @@ export const ChatScreen: React.FC = () => {
 
   const flatListRef = useRef<FlatList>(null);
 
-  // Load memories on mount
+  // Keep a ref so async functions always see the latest messages
+  const messagesRef = useRef(messages);
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
+
+  // Init seeds + load memories on mount
   useEffect(() => {
-    loadMemories().then(setMemories);
+    (async () => {
+      await initSeedMemories();
+      const mems = await loadMemories();
+      setMemories(mems);
+    })();
   }, []);
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 80);
   }, []);
 
-  // ── Single-agent generation ──────────────────────────────────────────────────
+  // ── Memory helpers ──────────────────────────────────────────────────────────
+
+  const getMemoryInjection = (currentQuery: string): string => {
+    if (!settings.memoryEnabled || memories.length === 0) return '';
+    // Use recent conversation context so follow-up questions get correct memories
+    const recentCtx = buildRecentContextForMemory(messagesRef.current, currentQuery);
+    const relevant = getRelevantMemories(memories, currentQuery, recentCtx, 8);
+    if (relevant.length === 0) return '';
+    // Mark them as used (async, don't block)
+    markMemoriesUsed(relevant.map((m) => m.id));
+    return buildMemoryContext(relevant);
+  };
+
+  // ── Single-agent generation ─────────────────────────────────────────────────
+
   const runSingleAgent = async (userText: string) => {
     const agent = getAgent(activeAgentId);
 
-    // Build system prompt with memory
-    let systemPrompt = agent.systemPrompt;
-    if (settings.memoryEnabled && memories.length > 0) {
-      const relevant = getRelevantMemories(memories, userText);
-      systemPrompt += buildMemoryContext(relevant);
-    }
+    // System prompt + memory injection (uses recent context for lookup)
+    const systemPrompt = agent.systemPrompt + getMemoryInjection(userText);
+
+    // Clean history: NO pipeline steps, current user message at end
+    const history = buildCleanHistory(messagesRef.current, userText);
+    const prompt = buildChatMLPrompt(history, systemPrompt);
 
     const placeholder: Message = {
       id: `${Date.now()}_ai`,
@@ -71,20 +149,20 @@ export const ChatScreen: React.FC = () => {
     addMessage(placeholder);
     scrollToBottom();
 
-    const history = messages
-      .filter((m) => m.role !== 'system')
-      .map((m) => ({ role: m.role, content: m.content }));
-    history.push({ role: 'user', content: userText });
-
-    const prompt = buildChatMLPrompt(history, systemPrompt);
-
     let full = '';
     let tokenCount = 0;
     const startMs = Date.now();
 
     try {
       await llamaContext.completion(
-        { prompt, n_predict: settings.maxTokens, temperature: settings.temperature, top_p: settings.topP, stop: settings.stopWords, repeat_penalty: 1.1 },
+        {
+          prompt,
+          n_predict: settings.maxTokens,
+          temperature: settings.temperature,
+          top_p: settings.topP,
+          stop: settings.stopWords,
+          repeat_penalty: 1.1,
+        },
         (data: { token: string }) => {
           full += data.token;
           tokenCount++;
@@ -97,10 +175,27 @@ export const ChatScreen: React.FC = () => {
     } catch (e: any) {
       if (!e?.message?.includes('abort')) updateLastAssistantMessage('[Error generating response]');
     }
+
+    // Self-learn from this exchange
+    if (settings.memoryEnabled && full.trim()) {
+      const newMems = await learnFromExchange(userText, full, memories);
+      if (newMems.length > 0) {
+        const updatedMems = await loadMemories();
+        setMemories(updatedMems);
+      }
+    }
   };
 
-  // ── Multi-agent pipeline ─────────────────────────────────────────────────────
+  // ── Multi-agent pipeline ────────────────────────────────────────────────────
+
   const runMultiAgentPipeline = async (userText: string) => {
+    // Build full conversation context ONCE — all agents share this
+    // This is the KEY FIX: agents know what was discussed before this message
+    const conversationContext = buildConversationContext(messagesRef.current, userText);
+
+    // Memory injection for the synthesis step
+    const memoryInjection = getMemoryInjection(userText);
+
     const agentResponses: Array<{ agentName: string; content: string }> = [];
 
     for (let i = 0; i < MULTI_AGENT_PIPELINE.length; i++) {
@@ -108,21 +203,24 @@ export const ChatScreen: React.FC = () => {
       const agent = getAgent(step.agentId);
       const isFinal = i === MULTI_AGENT_PIPELINE.length - 1;
 
-      let systemPrompt = agent.systemPrompt;
-      if (settings.memoryEnabled && memories.length > 0 && isFinal) {
-        const relevant = getRelevantMemories(memories, userText);
-        systemPrompt += buildMemoryContext(relevant);
-      }
+      // Final synthesizer gets memory; earlier agents get clean system prompt
+      const systemPrompt = isFinal
+        ? agent.systemPrompt + memoryInjection
+        : agent.systemPrompt;
 
-      const stepPrompt = buildPipelinePrompt(step, userText, agentResponses);
+      // Build this step's prompt:
+      // - Uses conversationContext (full prior chat) instead of bare userText
+      // - Appends prior agents' responses for agent-to-agent reasoning
+      const stepUserPrompt = buildPipelinePrompt(step, conversationContext, agentResponses);
+
+      // Each agent sees: its system prompt + the contextual question as a single user turn
       const fullPrompt = buildChatMLPrompt(
-        [{ role: 'user', content: stepPrompt }],
+        [{ role: 'user', content: stepUserPrompt }],
         systemPrompt,
       );
 
-      const msgId = `${Date.now()}_${i}`;
       const placeholder: Message = {
-        id: msgId,
+        id: `${Date.now()}_step${i}`,
         role: 'assistant', content: '',
         timestamp: Date.now(),
         agentId: agent.id, agentName: agent.name,
@@ -140,8 +238,8 @@ export const ChatScreen: React.FC = () => {
         await llamaContext.completion(
           {
             prompt: fullPrompt,
-            n_predict: isFinal ? settings.maxTokens : Math.min(settings.maxTokens, 400),
-            temperature: isFinal ? settings.temperature : 0.6,
+            n_predict: isFinal ? settings.maxTokens : Math.min(settings.maxTokens, 350),
+            temperature: isFinal ? settings.temperature : 0.5,
             top_p: settings.topP,
             stop: settings.stopWords,
             repeat_penalty: 1.1,
@@ -158,25 +256,32 @@ export const ChatScreen: React.FC = () => {
         updateLastAssistantMessage(stepContent, { tokens: tokenCount, tokensPerSec: tps });
         agentResponses.push({ agentName: agent.name, content: stepContent });
 
-        // Small pause between agents
-        if (!isFinal) await new Promise((r) => setTimeout(r, 300));
+        if (!isFinal) await new Promise((r) => setTimeout(r, 200));
       } catch (e: any) {
-        if (!e?.message?.includes('abort')) {
-          updateLastAssistantMessage('[Agent error]');
-        }
+        if (!e?.message?.includes('abort')) updateLastAssistantMessage('[Agent error]');
         break;
+      }
+    }
+
+    // Self-learn from final response
+    const finalResponse = agentResponses[agentResponses.length - 1]?.content ?? '';
+    if (settings.memoryEnabled && finalResponse.trim()) {
+      const newMems = await learnFromExchange(userText, finalResponse, memories);
+      if (newMems.length > 0) {
+        const updatedMems = await loadMemories();
+        setMemories(updatedMems);
       }
     }
   };
 
-  // ── Main send handler ────────────────────────────────────────────────────────
+  // ── Main send handler ───────────────────────────────────────────────────────
+
   const handleSend = async (userText: string) => {
     if (!llamaContext) {
       Alert.alert('No Model', 'Please load a model from the Models tab first.');
       return;
     }
 
-    // Add user message
     const userMsg: Message = {
       id: `${Date.now()}_user`,
       role: 'user', content: userText,
@@ -184,16 +289,6 @@ export const ChatScreen: React.FC = () => {
     };
     addMessage(userMsg);
     setIsGenerating(true);
-
-    // Auto-extract memories from user message
-    if (settings.memoryEnabled) {
-      const facts = extractFactsFromUserMessage(userText);
-      for (const fact of facts) {
-        const cat = categoriseFact(fact);
-        const newMem = await addMemory({ content: fact, category: cat, source: 'auto', tags: [] });
-        setMemories([newMem, ...memories]);
-      }
-    }
 
     try {
       if (isMultiAgentMode) {
@@ -248,7 +343,7 @@ export const ChatScreen: React.FC = () => {
             <Text style={styles.emptyHint}>
               {llamaContext
                 ? isMultiAgentMode
-                  ? '🔮 Multi-agent mode active\nAgents will collaborate on your question'
+                  ? '🔮 Multi-agent mode active\nAgents share full conversation context'
                   : 'Start a conversation below'
                 : 'Load a model from the Models tab to begin'}
             </Text>
@@ -280,8 +375,19 @@ const styles = StyleSheet.create({
   clearText: { color: colors.error, fontSize: fontSizes.sm },
   list: { paddingVertical: spacing.md },
   emptyList: { flex: 1 },
-  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
-  emptyLogo: { fontSize: 56, fontWeight: '900', color: colors.primary, letterSpacing: 4, marginBottom: spacing.md },
-  emptySubtitle: { fontSize: fontSizes.lg, color: colors.text, fontWeight: '600', marginBottom: spacing.sm },
-  emptyHint: { fontSize: fontSizes.sm, color: colors.textSecondary, textAlign: 'center', lineHeight: 22 },
+  emptyContainer: {
+    flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl,
+  },
+  emptyLogo: {
+    fontSize: 56, fontWeight: '900', color: colors.primary,
+    letterSpacing: 4, marginBottom: spacing.md,
+  },
+  emptySubtitle: {
+    fontSize: fontSizes.lg, color: colors.text,
+    fontWeight: '600', marginBottom: spacing.sm,
+  },
+  emptyHint: {
+    fontSize: fontSizes.sm, color: colors.textSecondary,
+    textAlign: 'center', lineHeight: 22,
+  },
 });
