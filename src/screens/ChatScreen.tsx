@@ -7,7 +7,7 @@ import { useAppStore, Message } from '../store/useAppStore';
 import { MessageBubble } from '../components/MessageBubble';
 import { ChatInput } from '../components/ChatInput';
 import { ModelBar } from '../components/ModelBar';
-import { colors, spacing, fontSizes } from '../theme';
+import { colors, spacing, fontSizes, fonts } from '../theme';
 import { getAgent, MULTI_AGENT_PIPELINE, buildPipelinePrompt } from '../utils/agents';
 import {
   loadMemories, initSeedMemories,
@@ -317,14 +317,16 @@ export const ChatScreen: React.FC = () => {
   };
 
   const visibleMessages = messages.filter((m) => m.role !== 'system');
+  const lastIndex = visibleMessages.length - 1;
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Terminal title bar */}
       <View style={styles.header}>
-        <Text style={styles.title}>irai</Text>
+        <Text style={styles.title}>{'╔══ IRAI TERMINAL ══╗'}</Text>
         {visibleMessages.length > 0 && (
           <TouchableOpacity onPress={handleClear} style={styles.clearBtn}>
-            <Text style={styles.clearText}>Clear</Text>
+            <Text style={styles.clearText}>{'[CLR]'}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -335,17 +337,30 @@ export const ChatScreen: React.FC = () => {
         ref={flatListRef}
         data={visibleMessages}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <MessageBubble message={item} />}
+        renderItem={({ item, index }) => (
+          <MessageBubble
+            message={item}
+            isStreaming={
+              isGenerating && index === lastIndex && item.role === 'assistant'
+            }
+          />
+        )}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyLogo}>irai</Text>
-            <Text style={styles.emptySubtitle}>Your offline AI assistant</Text>
+            <Text style={styles.emptyAscii}>
+              {'  _  ____   _    ___ \n' +
+               ' (_)|  _ \\ / \\  |_ _|\n' +
+               ' | || |_) / _ \\  | | \n' +
+               ' | ||  _ < ___ \\ | | \n' +
+               ' |_||_| \\_\\   \\_\\___|'}
+            </Text>
+            <Text style={styles.emptySubtitle}>{'// offline AI terminal'}</Text>
             <Text style={styles.emptyHint}>
               {llamaContext
                 ? isMultiAgentMode
-                  ? '🔮 Multi-agent mode active\nAgents share full conversation context'
-                  : 'Start a conversation below'
-                : 'Load a model from the Models tab to begin'}
+                  ? '>> MULTI-AGENT MODE ACTIVE\n>> agents share full conversation context'
+                  : '>> model loaded. ready for input.'
+                : '>> no model loaded.\n>> go to MODELS tab to load a model.'}
             </Text>
           </View>
         }
@@ -369,25 +384,41 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.xs,
+    borderBottomWidth: 1, borderBottomColor: colors.primaryDark,
   },
-  title: { fontSize: fontSizes.xxl, fontWeight: '800', color: colors.primary, letterSpacing: 1 },
+  title: {
+    fontFamily: fonts.mono,
+    fontSize: fontSizes.sm,
+    fontWeight: '700',
+    color: colors.primary,
+    letterSpacing: 0.5,
+  },
   clearBtn: { padding: spacing.sm },
-  clearText: { color: colors.error, fontSize: fontSizes.sm },
-  list: { paddingVertical: spacing.md },
+  clearText: { fontFamily: fonts.mono, color: colors.error, fontSize: fontSizes.xs, fontWeight: '700' },
+  list: { paddingVertical: spacing.sm },
   emptyList: { flex: 1 },
   emptyContainer: {
     flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl,
   },
-  emptyLogo: {
-    fontSize: 56, fontWeight: '900', color: colors.primary,
-    letterSpacing: 4, marginBottom: spacing.md,
+  emptyAscii: {
+    fontFamily: fonts.mono,
+    fontSize: 13,
+    color: colors.primary,
+    lineHeight: 20,
+    marginBottom: spacing.lg,
+    textAlign: 'center',
   },
   emptySubtitle: {
-    fontSize: fontSizes.lg, color: colors.text,
-    fontWeight: '600', marginBottom: spacing.sm,
+    fontFamily: fonts.mono,
+    fontSize: fontSizes.sm,
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
   },
   emptyHint: {
-    fontSize: fontSizes.sm, color: colors.textSecondary,
-    textAlign: 'center', lineHeight: 22,
+    fontFamily: fonts.mono,
+    fontSize: fontSizes.xs,
+    color: colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });

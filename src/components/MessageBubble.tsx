@@ -1,80 +1,115 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { Message } from '../store/useAppStore';
-import { colors, spacing, fontSizes, borderRadius } from '../theme';
+import { colors, spacing, fontSizes, fonts } from '../theme';
 
 interface Props {
   message: Message;
+  isStreaming?: boolean; // true for the message currently being generated
 }
 
-export const MessageBubble: React.FC<Props> = ({ message }) => {
-  const isUser = message.role === 'user';
-  const isTyping = message.role === 'assistant' && message.content === '';
-  const [expanded, setExpanded] = useState(true);
+// Blinking block cursor that pulses while streaming
+const StreamCursor: React.FC = () => {
+  const opacity = useRef(new Animated.Value(1)).current;
 
-  const agentColor = message.agentColor || colors.primary;
-  const agentIcon = message.agentIcon || '🤖';
-  const agentName = message.agentName || 'irai';
-  const isPipelineStep = message.isPipelineStep;
+  useEffect(() => {
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 0, duration: 500, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+      ]),
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [opacity]);
 
   return (
-    <View style={[styles.container, isUser ? styles.userContainer : styles.aiContainer]}>
-      {!isUser && (
-        <View style={[styles.avatar, { backgroundColor: agentColor + '33' }]}>
-          <Text style={styles.avatarIcon}>{agentIcon}</Text>
+    <Animated.Text style={[styles.cursor, { opacity }]}>█</Animated.Text>
+  );
+};
+
+export const MessageBubble: React.FC<Props> = ({ message, isStreaming = false }) => {
+  const isUser = message.role === 'user';
+  const isWaiting = message.role === 'assistant' && message.content === '';
+  const [expanded, setExpanded] = useState(true);
+  const isPipelineStep = message.isPipelineStep;
+
+  const agentColor = message.agentColor || colors.primary;
+  const agentName  = (message.agentName || 'irai').toUpperCase();
+  const agentIcon  = message.agentIcon || '▸';
+
+  // ── User message ─────────────────────────────────────────────────────────────
+  if (isUser) {
+    return (
+      <View style={styles.userRow}>
+        <View style={styles.userBlock}>
+          <Text style={styles.userPrompt}>
+            <Text style={styles.userPromptSymbol}>{'[USER]> '}</Text>
+            {message.content}
+          </Text>
         </View>
-      )}
+      </View>
+    );
+  }
 
-      <View style={[styles.bubbleWrapper, isUser ? styles.userWrapper : styles.aiWrapper]}>
-        {!isUser && (
-          <View style={styles.agentRow}>
-            <Text style={[styles.agentName, { color: agentColor }]}>{agentName}</Text>
-            {isPipelineStep && <Text style={styles.pipelineTag}>agent step</Text>}
-          </View>
+  // ── Pipeline step (collapsible) ───────────────────────────────────────────
+  if (isPipelineStep) {
+    return (
+      <TouchableOpacity
+        style={styles.pipelineBlock}
+        onPress={() => setExpanded(!expanded)}
+        activeOpacity={0.85}>
+        <Text style={[styles.pipelineHeader, { color: agentColor }]}>
+          {expanded ? '▼' : '▶'} {agentIcon} {agentName}
+          <Text style={styles.pipelineTag}> [AGENT STEP]</Text>
+        </Text>
+        {expanded && (
+          <Text style={[styles.pipelineContent, { color: agentColor + 'CC' }]}>
+            {message.content}
+          </Text>
         )}
+        {!expanded && (
+          <Text style={[styles.pipelinePreview, { color: agentColor + '88' }]}>
+            {message.content.slice(0, 90).replace(/\n/g, ' ')}…
+          </Text>
+        )}
+      </TouchableOpacity>
+    );
+  }
 
-        {isPipelineStep ? (
-          // Collapsible pipeline step
-          <TouchableOpacity
-            style={[styles.bubble, styles.pipelineBubble, { borderColor: agentColor + '44' }]}
-            onPress={() => setExpanded(!expanded)}
-            activeOpacity={0.9}>
-            {!expanded ? (
-              <Text style={[styles.collapsedText, { color: agentColor }]}>
-                {agentIcon} {agentName}: {message.content.slice(0, 80)}… (tap to expand)
-              </Text>
-            ) : (
-              <>
-                <Text style={[styles.text, styles.aiText]}>{message.content}</Text>
-                <Text style={[styles.collapseHint, { color: agentColor }]}>tap to collapse</Text>
-              </>
-            )}
-          </TouchableOpacity>
+  // ── AI message ────────────────────────────────────────────────────────────
+  return (
+    <View style={styles.aiBlock}>
+      {/* Header bar */}
+      <View style={[styles.aiHeader, { borderBottomColor: agentColor + '55' }]}>
+        <Text style={[styles.aiHeaderText, { color: agentColor }]}>
+          {'┌─[ '}{agentIcon} {agentName}{' ]'}
+        </Text>
+      </View>
+
+      {/* Content */}
+      <View style={styles.aiBody}>
+        {isWaiting ? (
+          // Waiting for first token
+          <Text style={styles.waitingText}>
+            {'> initializing'}
+            <StreamCursor />
+          </Text>
         ) : (
-          <View style={[styles.bubble, isUser ? styles.userBubble : styles.aiBubble]}>
-            {isTyping ? (
-              <View style={styles.typingRow}>
-                <Text style={styles.typingDots}>●●●</Text>
-              </View>
-            ) : (
-              <>
-                <Text style={[styles.text, isUser ? styles.userText : styles.aiText]}>
-                  {message.content}
-                </Text>
-                {!isUser && message.tokensPerSec && message.tokensPerSec > 0 && (
-                  <Text style={styles.meta}>
-                    {message.tokensPerSec.toFixed(1)} t/s · {message.tokens} tokens
-                  </Text>
-                )}
-              </>
-            )}
-          </View>
+          <Text style={styles.aiText}>
+            {'> '}
+            {message.content}
+            {isStreaming && <StreamCursor />}
+          </Text>
         )}
       </View>
 
-      {isUser && (
-        <View style={[styles.avatar, styles.userAvatar]}>
-          <Text style={styles.avatarIcon}>👤</Text>
+      {/* Footer with token stats */}
+      {!isStreaming && message.tokensPerSec && message.tokensPerSec > 0 && (
+        <View style={styles.aiFooter}>
+          <Text style={styles.metaText}>
+            {'└─[ '}{message.tokensPerSec.toFixed(1)}{' t/s | '}{message.tokens}{' tokens ]'}
+          </Text>
         </View>
       )}
     </View>
@@ -82,57 +117,122 @@ export const MessageBubble: React.FC<Props> = ({ message }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
+  // ── User ─────────────────────────────────────────────────────────────────
+  userRow: {
     marginVertical: spacing.xs,
     marginHorizontal: spacing.sm,
     alignItems: 'flex-end',
   },
-  userContainer: { justifyContent: 'flex-end' },
-  aiContainer: { justifyContent: 'flex-start' },
-  bubbleWrapper: { maxWidth: '80%' },
-  userWrapper: { alignItems: 'flex-end' },
-  aiWrapper: { alignItems: 'flex-start' },
-  avatar: {
-    width: 32, height: 32, borderRadius: 16,
-    alignItems: 'center', justifyContent: 'center',
-    marginHorizontal: 6,
-  },
-  userAvatar: { backgroundColor: colors.textMuted + '33' },
-  avatarIcon: { fontSize: 16 },
-  agentRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4, gap: spacing.xs },
-  agentName: { fontSize: fontSizes.xs, fontWeight: '800' },
-  pipelineTag: {
-    fontSize: 9, fontWeight: '700', color: colors.textMuted,
-    backgroundColor: colors.surfaceVariant,
-    paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4,
-  },
-  bubble: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
-    borderRadius: borderRadius.lg,
-  },
-  userBubble: {
+  userBlock: {
+    maxWidth: '88%',
     backgroundColor: colors.userBubble,
-    borderBottomRightRadius: 4,
+    borderWidth: 1,
+    borderColor: colors.primaryDim + '66',
+    borderRadius: 2,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
   },
-  aiBubble: {
+  userPrompt: {
+    fontFamily: fonts.mono,
+    fontSize: fontSizes.md,
+    color: colors.userBubbleText,
+    lineHeight: 20,
+  },
+  userPromptSymbol: {
+    color: colors.primary,
+    fontWeight: 'bold',
+  },
+
+  // ── AI message ────────────────────────────────────────────────────────────
+  aiBlock: {
+    marginVertical: spacing.xs,
+    marginHorizontal: spacing.sm,
     backgroundColor: colors.aiBubble,
-    borderBottomLeftRadius: 4,
     borderWidth: 1,
-    borderColor: colors.cardBorder,
+    borderColor: colors.primaryDark,
+    borderRadius: 2,
+    overflow: 'hidden',
   },
-  pipelineBubble: {
-    backgroundColor: colors.surfaceVariant,
-    borderBottomLeftRadius: 4,
+  aiHeader: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 5,
+    backgroundColor: '#001A0A',
+    borderBottomWidth: 1,
+  },
+  aiHeaderText: {
+    fontFamily: fonts.mono,
+    fontSize: fontSizes.xs,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  aiBody: {
+    padding: spacing.md,
+  },
+  aiText: {
+    fontFamily: fonts.mono,
+    fontSize: fontSizes.md,
+    color: colors.text,
+    lineHeight: 22,
+  },
+  waitingText: {
+    fontFamily: fonts.mono,
+    fontSize: fontSizes.md,
+    color: colors.textSecondary,
+    lineHeight: 22,
+  },
+  aiFooter: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderTopWidth: 1,
+    borderTopColor: colors.primaryDark,
+  },
+  metaText: {
+    fontFamily: fonts.mono,
+    fontSize: fontSizes.xs,
+    color: colors.textMuted,
+  },
+  cursor: {
+    color: colors.primary,
+    fontFamily: fonts.mono,
+    fontSize: fontSizes.md,
+  },
+
+  // ── Pipeline step ─────────────────────────────────────────────────────────
+  pipelineBlock: {
+    marginVertical: 3,
+    marginHorizontal: spacing.sm,
+    backgroundColor: '#030D06',
     borderWidth: 1,
+    borderColor: colors.primaryDark,
+    borderRadius: 2,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderLeftWidth: 2,
+    borderLeftColor: colors.primaryDim,
   },
-  text: { fontSize: fontSizes.md, lineHeight: 22 },
-  userText: { color: '#fff' },
-  aiText: { color: colors.text },
-  collapsedText: { fontSize: fontSizes.xs, lineHeight: 18, fontStyle: 'italic' },
-  collapseHint: { fontSize: 10, marginTop: spacing.xs, opacity: 0.6 },
-  meta: { fontSize: fontSizes.xs, color: colors.textMuted, marginTop: spacing.xs },
-  typingRow: { paddingVertical: 4 },
-  typingDots: { color: colors.textSecondary, fontSize: 12, letterSpacing: 4 },
+  pipelineHeader: {
+    fontFamily: fonts.mono,
+    fontSize: fontSizes.xs,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  pipelineTag: {
+    color: colors.textMuted,
+    fontWeight: '400',
+  },
+  pipelineContent: {
+    fontFamily: fonts.mono,
+    fontSize: fontSizes.sm,
+    lineHeight: 18,
+    marginTop: spacing.xs,
+  },
+  pipelinePreview: {
+    fontFamily: fonts.mono,
+    fontSize: fontSizes.xs,
+    lineHeight: 16,
+    fontStyle: 'italic',
+  },
 });

@@ -7,7 +7,7 @@ import { AgentsScreen } from '../screens/AgentsScreen';
 import { MemoryScreen } from '../screens/MemoryScreen';
 import { ModelsScreen } from '../screens/ModelsScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
-import { colors, fontSizes } from '../theme';
+import { colors, fontSizes, fonts } from '../theme';
 
 const Tab = createBottomTabNavigator();
 
@@ -16,21 +16,22 @@ const navTheme = {
   colors: {
     ...DefaultTheme.colors,
     background: colors.background,
-    card: colors.surface,
-    border: colors.divider,
+    card: '#050505',
+    border: colors.primaryDark,
     text: colors.text,
     primary: colors.primary,
     notification: colors.primary,
   },
 };
 
-const TABS = [
-  { name: 'Chat', icon: '💬', screen: ChatScreen },
-  { name: 'Agents', icon: '🔮', screen: AgentsScreen },
-  { name: 'Memory', icon: '🧠', screen: MemoryScreen },
-  { name: 'Models', icon: '📦', screen: ModelsScreen },
-  { name: 'Settings', icon: '⚙️', screen: SettingsScreen },
-];
+// Terminal-style ASCII tab icons
+const TAB_ICONS: Record<string, { active: string; inactive: string }> = {
+  Chat:     { active: '▸', inactive: '▹' },
+  Agents:   { active: '◈', inactive: '◇' },
+  Memory:   { active: '◉', inactive: '○' },
+  Models:   { active: '◆', inactive: '◇' },
+  Settings: { active: '⊞', inactive: '⊟' },
+};
 
 export const AppNavigator: React.FC = () => (
   <NavigationContainer theme={navTheme}>
@@ -38,23 +39,39 @@ export const AppNavigator: React.FC = () => (
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.divider,
-          height: 62,
-          paddingBottom: 10,
+          backgroundColor: '#050505',
+          borderTopColor: colors.primaryDark,
+          borderTopWidth: 1,
+          height: 60,
+          paddingBottom: 8,
           paddingTop: 6,
         },
         tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textSecondary,
-        tabBarLabelStyle: { fontSize: fontSizes.xs, fontWeight: '700' },
+        tabBarInactiveTintColor: colors.textMuted,
+        tabBarLabelStyle: {
+          fontFamily: fonts.mono,
+          fontSize: 10,
+          letterSpacing: 0.5,
+          fontWeight: '700',
+        },
         tabBarIcon: ({ focused }) => {
-          const tab = TABS.find((t) => t.name === route.name);
-          return <Text style={{ fontSize: focused ? 20 : 18 }}>{tab?.icon}</Text>;
+          const icon = TAB_ICONS[route.name];
+          return (
+            <Text style={{
+              fontFamily: fonts.mono,
+              fontSize: focused ? 18 : 15,
+              color: focused ? colors.primary : colors.textMuted,
+            }}>
+              {focused ? icon?.active : icon?.inactive}
+            </Text>
+          );
         },
       })}>
-      {TABS.map((tab) => (
-        <Tab.Screen key={tab.name} name={tab.name} component={tab.screen} />
-      ))}
+      <Tab.Screen name="Chat"     component={ChatScreen} />
+      <Tab.Screen name="Agents"   component={AgentsScreen} />
+      <Tab.Screen name="Memory"   component={MemoryScreen} />
+      <Tab.Screen name="Models"   component={ModelsScreen} />
+      <Tab.Screen name="Settings" component={SettingsScreen} />
     </Tab.Navigator>
   </NavigationContainer>
 );

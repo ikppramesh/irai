@@ -7,7 +7,7 @@ import {
   Text,
   Platform,
 } from 'react-native';
-import { colors, spacing, fontSizes, borderRadius } from '../theme';
+import { colors, spacing, fontSizes, fonts } from '../theme';
 
 interface Props {
   onSend: (text: string) => void;
@@ -27,15 +27,26 @@ export const ChatInput: React.FC<Props> = ({ onSend, onStop, isGenerating, disab
     setText('');
   };
 
+  const canSend = !!text.trim() && !disabled && !isGenerating;
+
   return (
     <View style={styles.container}>
+      {/* Terminal prompt row */}
+      <View style={styles.promptRow}>
+        <Text style={styles.promptLabel}>
+          {disabled ? 'NO_MODEL' : isGenerating ? 'GENERATING' : 'INPUT'}
+        </Text>
+        <Text style={styles.promptSeparator}> ══ </Text>
+      </View>
+
       <View style={styles.inputRow}>
+        <Text style={styles.promptSymbol}>{'>'}</Text>
         <TextInput
           ref={inputRef}
           style={styles.input}
           value={text}
           onChangeText={setText}
-          placeholder={disabled ? 'Load a model first...' : 'Message irai...'}
+          placeholder={disabled ? 'load a model first...' : 'enter command...'}
           placeholderTextColor={colors.textMuted}
           multiline
           maxLength={4000}
@@ -43,17 +54,20 @@ export const ChatInput: React.FC<Props> = ({ onSend, onStop, isGenerating, disab
           returnKeyType="send"
           blurOnSubmit={false}
           onSubmitEditing={Platform.OS === 'android' ? undefined : handleSend}
+          selectionColor={colors.primary}
         />
         {isGenerating ? (
-          <TouchableOpacity style={[styles.sendBtn, styles.stopBtn]} onPress={onStop}>
-            <Text style={styles.stopIcon}>■</Text>
+          <TouchableOpacity style={[styles.actionBtn, styles.stopBtn]} onPress={onStop}>
+            <Text style={styles.actionBtnText}>{'[STOP]'}</Text>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
-            style={[styles.sendBtn, (!text.trim() || disabled) && styles.sendBtnDisabled]}
+            style={[styles.actionBtn, !canSend && styles.actionBtnDisabled]}
             onPress={handleSend}
-            disabled={!text.trim() || disabled}>
-            <Text style={styles.sendIcon}>▲</Text>
+            disabled={!canSend}>
+            <Text style={[styles.actionBtnText, !canSend && styles.actionBtnTextDisabled]}>
+              {'[RUN]'}
+            </Text>
           </TouchableOpacity>
         )}
       </View>
@@ -65,41 +79,81 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.background,
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
+    paddingTop: spacing.xs,
     paddingBottom: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: colors.divider,
+    borderTopColor: colors.primaryDark,
+  },
+  promptRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  promptLabel: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    color: colors.textMuted,
+    letterSpacing: 1,
+  },
+  promptSeparator: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    color: colors.primaryDark,
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     backgroundColor: colors.inputBg,
-    borderRadius: borderRadius.xl,
     borderWidth: 1,
     borderColor: colors.inputBorder,
-    paddingLeft: spacing.md,
+    borderRadius: 2,
+    paddingLeft: spacing.sm,
     paddingRight: spacing.xs,
     paddingVertical: spacing.xs,
   },
+  promptSymbol: {
+    fontFamily: fonts.mono,
+    fontSize: fontSizes.lg,
+    color: colors.primary,
+    fontWeight: 'bold',
+    paddingBottom: Platform.OS === 'android' ? 8 : 6,
+    marginRight: spacing.xs,
+  },
   input: {
     flex: 1,
+    fontFamily: fonts.mono,
     color: colors.text,
     fontSize: fontSizes.md,
     maxHeight: 120,
     paddingVertical: spacing.sm,
+    lineHeight: 20,
   },
-  sendBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: colors.primary,
+  actionBtn: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: 2,
+    marginLeft: spacing.xs,
+    marginBottom: 4,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: spacing.xs,
-    marginBottom: 2,
+    minWidth: 60,
   },
-  sendBtnDisabled: { backgroundColor: colors.textMuted, opacity: 0.5 },
-  stopBtn: { backgroundColor: colors.error },
-  sendIcon: { color: '#fff', fontSize: 14, fontWeight: '700' },
-  stopIcon: { color: '#fff', fontSize: 14 },
+  actionBtnDisabled: {
+    borderColor: colors.primaryDark,
+  },
+  stopBtn: {
+    borderColor: colors.error,
+  },
+  actionBtnText: {
+    fontFamily: fonts.mono,
+    fontSize: fontSizes.xs,
+    fontWeight: '700',
+    color: colors.primary,
+    letterSpacing: 0.5,
+  },
+  actionBtnTextDisabled: {
+    color: colors.textMuted,
+  },
 });

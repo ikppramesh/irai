@@ -1,27 +1,34 @@
+import { Platform } from 'react-native';
+
 export const colors = {
-  primary: '#7C4DFF',
-  primaryLight: '#B47CFF',
-  secondary: '#00BCD4',
-  background: '#0D0D1A',
-  surface: '#16162A',
-  surfaceVariant: '#1E1E3A',
-  card: '#1A1A30',
-  cardBorder: '#2A2A4A',
-  text: '#E8E8FF',
-  textSecondary: '#8888AA',
-  textMuted: '#555580',
-  userBubble: '#7C4DFF',
-  userBubbleText: '#FFFFFF',
-  aiBubble: '#1E1E3A',
-  aiBubbleText: '#E8E8FF',
-  inputBg: '#1A1A30',
-  inputBorder: '#3A3A5A',
-  error: '#FF5252',
-  success: '#69F0AE',
-  warning: '#FFD740',
-  divider: '#2A2A4A',
-  icon: '#8888AA',
-  iconActive: '#7C4DFF',
+  primary:        '#00E676',   // phosphor green
+  primaryDim:     '#00843D',   // medium green
+  primaryDark:    '#003D1E',   // dark green border
+  secondary:      '#00FFFF',   // cyan accent
+  background:     '#000000',   // pure black
+  surface:        '#080808',
+  surfaceVariant: '#0D0D0D',
+  card:           '#0A0A0A',
+  cardBorder:     '#002B12',
+  text:           '#00E676',   // main terminal green
+  textSecondary:  '#00843D',
+  textMuted:      '#004D25',
+  userBubble:     '#001A0A',
+  userBubbleText: '#CCFFCC',
+  aiBubble:       '#000A04',
+  aiBubbleText:   '#00E676',
+  inputBg:        '#000A04',
+  inputBorder:    '#00843D',
+  error:          '#FF3333',
+  success:        '#00E676',
+  warning:        '#FFB300',
+  divider:        '#002B12',
+  icon:           '#00843D',
+  iconActive:     '#00E676',
+};
+
+export const fonts = {
+  mono: Platform.select({ ios: 'Courier New', android: 'monospace' }) ?? 'monospace',
 };
 
 export const spacing = {
@@ -34,17 +41,17 @@ export const spacing = {
 
 export const fontSizes = {
   xs: 11,
-  sm: 13,
-  md: 15,
-  lg: 17,
+  sm: 12,
+  md: 14,
+  lg: 16,
   xl: 20,
   xxl: 24,
 };
 
 export const borderRadius = {
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 24,
+  sm: 4,
+  md: 6,
+  lg: 8,
+  xl: 10,
   full: 999,
 };
