@@ -1,8 +1,10 @@
 import React from 'react';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text, View } from 'react-native';
+import { Text } from 'react-native';
 import { ChatScreen } from '../screens/ChatScreen';
+import { AgentsScreen } from '../screens/AgentsScreen';
+import { MemoryScreen } from '../screens/MemoryScreen';
 import { ModelsScreen } from '../screens/ModelsScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { colors, fontSizes } from '../theme';
@@ -22,53 +24,37 @@ const navTheme = {
   },
 };
 
-const TabIcon = ({ label, focused }: { label: string; focused: boolean }) => (
-  <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 4 }}>
-    <Text style={{ 
-      fontSize: focused ? 20 : 18, 
-      color: focused ? colors.primary : colors.textSecondary 
-    }}>
-      {label === 'Chat' ? '💬' : label === 'Models' ? '🧠' : '⚙️'}
-    </Text>
-  </View>
-);
+const TABS = [
+  { name: 'Chat', icon: '💬', screen: ChatScreen },
+  { name: 'Agents', icon: '🔮', screen: AgentsScreen },
+  { name: 'Memory', icon: '🧠', screen: MemoryScreen },
+  { name: 'Models', icon: '📦', screen: ModelsScreen },
+  { name: 'Settings', icon: '⚙️', screen: SettingsScreen },
+];
 
 export const AppNavigator: React.FC = () => (
   <NavigationContainer theme={navTheme}>
     <Tab.Navigator
-      screenOptions={{
+      screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.divider,
-          height: 60,
-          paddingBottom: 8,
+          height: 62,
+          paddingBottom: 10,
+          paddingTop: 6,
         },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
-        tabBarLabelStyle: { fontSize: fontSizes.xs, fontWeight: '600' },
-      }}>
-      <Tab.Screen
-        name="Chat"
-        component={ChatScreen}
-        options={{
-          tabBarIcon: ({ focused }) => <TabIcon label="Chat" focused={focused} />,
-        }}
-      />
-      <Tab.Screen
-        name="Models"
-        component={ModelsScreen}
-        options={{
-          tabBarIcon: ({ focused }) => <TabIcon label="Models" focused={focused} />,
-        }}
-      />
-      <Tab.Screen
-        name="Settings"
-        component={SettingsScreen}
-        options={{
-          tabBarIcon: ({ focused }) => <TabIcon label="Settings" focused={focused} />,
-        }}
-      />
+        tabBarLabelStyle: { fontSize: fontSizes.xs, fontWeight: '700' },
+        tabBarIcon: ({ focused }) => {
+          const tab = TABS.find((t) => t.name === route.name);
+          return <Text style={{ fontSize: focused ? 20 : 18 }}>{tab?.icon}</Text>;
+        },
+      })}>
+      {TABS.map((tab) => (
+        <Tab.Screen key={tab.name} name={tab.name} component={tab.screen} />
+      ))}
     </Tab.Navigator>
   </NavigationContainer>
 );

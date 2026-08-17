@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { Memory } from '../utils/memory';
 
 export interface Message {
   id: string;
@@ -7,6 +8,11 @@ export interface Message {
   timestamp: number;
   tokens?: number;
   tokensPerSec?: number;
+  agentId?: string;   // which agent produced this message
+  agentName?: string;
+  agentIcon?: string;
+  agentColor?: string;
+  isPipelineStep?: boolean; // intermediate agent message in multi-agent mode
 }
 
 export interface ModelInfo {
@@ -24,39 +30,55 @@ export interface AppSettings {
   contextLength: number;
   stopWords: string[];
   showTokenSpeed: boolean;
-  theme: 'dark';
+  memoryEnabled: boolean;
 }
 
 interface AppState {
+  // Chat
   messages: Message[];
+  isGenerating: boolean;
+
+  // Model
   currentModel: ModelInfo | null;
   llamaContext: any | null;
-  isGenerating: boolean;
   isModelLoading: boolean;
   loadedModelPath: string | null;
-  generationAbortController: any | null;
+
+  // Agents
+  activeAgentId: string;
+  isMultiAgentMode: boolean;
+
+  // Memory
+  memories: Memory[];
+
+  // Settings
   settings: AppSettings;
+
   // Actions
   addMessage: (msg: Message) => void;
   updateLastAssistantMessage: (content: string, extra?: Partial<Message>) => void;
   clearMessages: () => void;
-  setCurrentModel: (model: ModelInfo | null) => void;
+  setCurrentModel: (m: ModelInfo | null) => void;
   setLlamaContext: (ctx: any | null) => void;
-  setIsGenerating: (val: boolean) => void;
-  setIsModelLoading: (val: boolean) => void;
-  setLoadedModelPath: (path: string | null) => void;
-  setGenerationAbortController: (ctrl: any | null) => void;
+  setIsGenerating: (v: boolean) => void;
+  setIsModelLoading: (v: boolean) => void;
+  setLoadedModelPath: (p: string | null) => void;
+  setActiveAgentId: (id: string) => void;
+  setMultiAgentMode: (v: boolean) => void;
+  setMemories: (m: Memory[]) => void;
   updateSettings: (s: Partial<AppSettings>) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
   messages: [],
+  isGenerating: false,
   currentModel: null,
   llamaContext: null,
-  isGenerating: false,
   isModelLoading: false,
   loadedModelPath: null,
-  generationAbortController: null,
+  activeAgentId: 'general',
+  isMultiAgentMode: false,
+  memories: [],
   settings: {
     systemPrompt: 'You are irai, a helpful, harmless, and honest AI assistant running completely offline on this device. Be concise and helpful.',
     temperature: 0.7,
@@ -65,24 +87,29 @@ export const useAppStore = create<AppState>((set) => ({
     contextLength: 2048,
     stopWords: ['</s>', '<|end|>', '<|im_end|>', 'Human:', 'User:'],
     showTokenSpeed: true,
-    theme: 'dark',
+    memoryEnabled: true,
   },
+
   addMessage: (msg) => set((s) => ({ messages: [...s.messages, msg] })),
   updateLastAssistantMessage: (content, extra) =>
     set((s) => {
       const msgs = [...s.messages];
-      const lastIdx = msgs.length - 1;
-      if (lastIdx >= 0 && msgs[lastIdx].role === 'assistant') {
-        msgs[lastIdx] = { ...msgs[lastIdx], content, ...extra };
+      for (let i = msgs.length - 1; i >= 0; i--) {
+        if (msgs[i].role === 'assistant') {
+          msgs[i] = { ...msgs[i], content, ...extra };
+          break;
+        }
       }
       return { messages: msgs };
     }),
   clearMessages: () => set({ messages: [] }),
-  setCurrentModel: (model) => set({ currentModel: model }),
+  setCurrentModel: (m) => set({ currentModel: m }),
   setLlamaContext: (ctx) => set({ llamaContext: ctx }),
-  setIsGenerating: (val) => set({ isGenerating: val }),
-  setIsModelLoading: (val) => set({ isModelLoading: val }),
-  setLoadedModelPath: (path) => set({ loadedModelPath: path }),
-  setGenerationAbortController: (ctrl) => set({ generationAbortController: ctrl }),
-  updateSettings: (newS) => set((s) => ({ settings: { ...s.settings, ...newS } })),
+  setIsGenerating: (v) => set({ isGenerating: v }),
+  setIsModelLoading: (v) => set({ isModelLoading: v }),
+  setLoadedModelPath: (p) => set({ loadedModelPath: p }),
+  setActiveAgentId: (id) => set({ activeAgentId: id }),
+  setMultiAgentMode: (v) => set({ isMultiAgentMode: v }),
+  setMemories: (m) => set({ memories: m }),
+  updateSettings: (s) => set((st) => ({ settings: { ...st.settings, ...s } })),
 }));

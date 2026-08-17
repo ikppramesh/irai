@@ -8,6 +8,7 @@ import {
   TextInput,
   TouchableOpacity,
   Alert,
+  Switch,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { useAppStore } from '../store/useAppStore';
@@ -137,6 +138,26 @@ export const SettingsScreen: React.FC = () => {
             placeholder="System prompt..."
             placeholderTextColor={colors.textMuted}
           />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>MEMORY</Text>
+          <View style={styles.card}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: colors.text, fontSize: fontSizes.sm, fontWeight: '600' }}>Auto-Memory</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: fontSizes.xs, marginTop: 2 }}>
+                  Remembers facts from your messages · works across all models
+                </Text>
+              </View>
+              <Switch
+                value={settings.memoryEnabled}
+                onValueChange={(v) => updateSettings({ memoryEnabled: v })}
+                trackColor={{ false: colors.cardBorder, true: colors.primary }}
+                thumbColor="#fff"
+              />
+            </View>
+          </View>
         </View>
 
         <View style={styles.section}>
