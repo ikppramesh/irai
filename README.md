@@ -1,4 +1,24 @@
-# irai — Offline AI Assistant for Android
+<p align="center">
+  <img src="assets/logo.png" width="160" alt="irai logo" />
+</p>
+
+<h1 align="center">irai — Offline AI Assistant for Android</h1>
+
+<p align="center">
+  <strong>100% offline · On-device LLM · No cloud · No data sharing</strong>
+</p>
+
+<p align="center">
+  <a href="https://github.com/ikppramesh/irai/raw/main/releases/irai-v1.0.0-android.apk">
+    <img src="https://img.shields.io/badge/Download-APK%20v1.0.0-7C4DFF?style=for-the-badge&logo=android" alt="Download APK" />
+  </a>
+  &nbsp;
+  <img src="https://img.shields.io/badge/Android-12%2B-green?style=for-the-badge&logo=android" alt="Android 12+" />
+  &nbsp;
+  <img src="https://img.shields.io/badge/React%20Native-0.75-61DAFB?style=for-the-badge&logo=react" alt="React Native" />
+</p>
+
+---
 
 **irai** is a fully offline, on-device LLM chat application for Android built with React Native and [llama.rn](https://github.com/mybigday/llama.rn). It runs large language models (LLMs) entirely on your phone — no internet, no cloud, no data leaving your device.
 
