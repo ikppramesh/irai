@@ -1,79 +1,314 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# irai — Offline AI Assistant for Android
 
-# Getting Started
+**irai** is a fully offline, on-device LLM chat application for Android built with React Native and [llama.rn](https://github.com/mybigday/llama.rn). It runs large language models (LLMs) entirely on your phone — no internet, no cloud, no data leaving your device.
 
->**Note**: Make sure you have completed the [React Native - Environment Setup](https://reactnative.dev/docs/environment-setup) instructions till "Creating a new application" step, before proceeding.
+Designed for the **Samsung Galaxy Fold 7** (Snapdragon 8 Elite, 12GB RAM) but works on any modern Android phone.
 
-## Step 1: Start the Metro Server
+---
 
-First, you will need to start **Metro**, the JavaScript _bundler_ that ships _with_ React Native.
+## Features
 
-To start Metro, run the following command from the _root_ of your React Native project:
+- **100% Offline** — all inference runs locally via llama.cpp
+- **GGUF model support** — load any GGUF model from your device storage
+- **Built-in model downloader** — download popular models directly to your phone
+- **Streaming responses** — tokens appear in real time as they're generated
+- **Token speed display** — see t/s (tokens per second) for each response
+- **Stop generation** — cancel mid-response with one tap
+- **Model manager** — import, load, unload, and delete models
+- **Adjustable parameters** — temperature, top-p, max tokens, context length
+- **Custom system prompt** — set your own personality/instructions
+- **Dark UI** — deep purple AMOLED-friendly theme
+- **Bottom tab navigation** — Chat / Models / Settings
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | React Native 0.75 |
+| LLM Runtime | llama.rn (llama.cpp bindings) |
+| State Management | Zustand |
+| Navigation | React Navigation v6 (bottom tabs) |
+| File System | react-native-fs |
+| File Picker | react-native-document-picker |
+| UI Components | react-native-paper, react-native-gesture-handler |
+| Settings Sliders | @react-native-community/slider |
+
+---
+
+## Supported Models
+
+Any GGUF-format model works. Recommended models for mobile:
+
+| Model | Size (4-bit) | Notes |
+|---|---|---|
+| **Phi-3 Mini 4K Instruct** | ~2.2 GB | Best balance of speed and quality |
+| **Llama 3.2 3B Instruct** | ~2.0 GB | Fast, good reasoning |
+| **Llama 3.2 1B Instruct** | ~0.7 GB | Fastest, lightweight |
+| **Gemma 2 2B Instruct** | ~1.5 GB | Strong instruction following |
+| **Qwen 2.5 3B Instruct** | ~2.0 GB | Excellent multilingual |
+| **SmolLM2 1.7B Instruct** | ~1.0 GB | Very fast, small footprint |
+| **Mistral 7B Instruct** | ~4.1 GB | Highest quality (needs 6GB+ RAM) |
+
+---
+
+## Prerequisites
+
+### Development Machine (macOS)
+
+- **Node.js** v18+ — `brew install node`
+- **JDK 17** — `brew install openjdk@17`
+- **Android Studio** — [developer.android.com/studio](https://developer.android.com/studio)
+  - Android SDK (API 35+)
+  - Android NDK 26.1.10909125
+  - CMake 3.22+
+- **ADB** — included with Android Studio or `brew install android-platform-tools`
+
+### Android Device
+
+- Android 12+ (API 31+)
+- arm64-v8a architecture
+- 4GB+ RAM recommended (8GB+ for 7B models)
+- USB debugging enabled
+
+---
+
+## Project Setup
+
+### 1. Clone the repository
 
 ```bash
-# using npm
-npm start
-
-# OR using Yarn
-yarn start
+git clone https://github.com/ikppramesh/irai.git
+cd irai
 ```
 
-## Step 2: Start your Application
-
-Let Metro Bundler run in its _own_ terminal. Open a _new_ terminal from the _root_ of your React Native project. Run the following command to start your _Android_ or _iOS_ app:
-
-### For Android
+### 2. Install dependencies
 
 ```bash
-# using npm
-npm run android
-
-# OR using Yarn
-yarn android
+npm install
 ```
 
-### For iOS
+### 3. Set up environment variables
+
+Add to your `~/.zshrc` or `~/.bashrc`:
 
 ```bash
-# using npm
-npm run ios
-
-# OR using Yarn
-yarn ios
+export ANDROID_HOME=$HOME/Library/Android/sdk
+export PATH=$PATH:$ANDROID_HOME/emulator
+export PATH=$PATH:$ANDROID_HOME/platform-tools
+export PATH=$PATH:$ANDROID_HOME/tools
 ```
 
-If everything is set up _correctly_, you should see your new app running in your _Android Emulator_ or _iOS Simulator_ shortly provided you have set up your emulator/simulator correctly.
+Then reload: `source ~/.zshrc`
 
-This is one way to run your app — you can also run it directly from within Android Studio and Xcode respectively.
+---
 
-## Step 3: Modifying your App
+## Building & Installing
 
-Now that you have successfully run the app, let's modify it.
+### Quick install (debug APK — standalone, no server needed)
 
-1. Open `App.tsx` in your text editor of choice and edit some lines.
-2. For **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Developer Menu** (<kbd>Ctrl</kbd> + <kbd>M</kbd> (on Window and Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (on macOS)) to see your changes!
+```bash
+# Step 1: Bundle JavaScript into the APK
+mkdir -p android/app/src/main/assets
+npx react-native bundle \
+  --platform android \
+  --dev false \
+  --entry-file index.js \
+  --bundle-output android/app/src/main/assets/index.android.bundle \
+  --assets-dest android/app/src/main/res/
 
-   For **iOS**: Hit <kbd>Cmd ⌘</kbd> + <kbd>R</kbd> in your iOS Simulator to reload the app and see your changes!
+# Step 2: Build the APK
+cd android && ./gradlew assembleDebug
 
-## Congratulations! :tada:
+# Step 3: Install on connected device
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
 
-You've successfully run and modified your React Native App. :partying_face:
+> APK output: `android/app/build/outputs/apk/debug/app-debug.apk` (~123 MB)
 
-### Now what?
+---
 
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [Introduction to React Native](https://reactnative.dev/docs/getting-started).
+## Development Mode
 
-# Troubleshooting
+For hot-reload during development:
 
-If you can't get this to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
+```bash
+# Start Metro bundler
+npx react-native start
 
-# Learn More
+# In a second terminal
+npx react-native run-android
+```
 
-To learn more about React Native, take a look at the following resources:
+---
 
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+## Project Structure
+
+```
+irai/
+├── App.tsx                          # App root (providers + navigation)
+├── index.js                         # Entry point
+├── src/
+│   ├── theme/
+│   │   └── index.ts                 # Colors, spacing, typography
+│   ├── store/
+│   │   └── useAppStore.ts           # Zustand global state
+│   ├── utils/
+│   │   └── modelUtils.ts            # Model file helpers, prompt builder
+│   ├── components/
+│   │   ├── MessageBubble.tsx        # Chat bubble (user + AI)
+│   │   ├── ChatInput.tsx            # Text input + send/stop buttons
+│   │   └── ModelBar.tsx             # Active model status bar
+│   ├── screens/
+│   │   ├── ChatScreen.tsx           # Main chat interface
+│   │   ├── ModelsScreen.tsx         # Model import/download/load/delete
+│   │   └── SettingsScreen.tsx       # Parameter sliders + system prompt
+│   └── navigation/
+│       └── AppNavigator.tsx         # Bottom tab navigator
+└── android/
+    └── app/src/main/
+        ├── java/com/irai/           # Android native code
+        └── AndroidManifest.xml
+```
+
+---
+
+## How to Use the App
+
+### Getting a model onto your device
+
+**Option A: Download directly in the app (recommended)**
+1. Open **irai** → tap **Models** tab
+2. Tap the **Download** button
+3. Select a model from the list (Phi-3 Mini, Llama 3.2, etc.)
+4. The download starts automatically with a progress bar
+5. Once complete, tap **Load**
+
+**Option B: Import a local file**
+1. Download a `.gguf` file to your phone (via browser or `adb push`)
+2. Tap **+ Import** in the Models tab
+3. Select the file from your file manager
+
+**Option C: Transfer via ADB**
+```bash
+adb push ~/Downloads/phi-3-mini-q4.gguf /sdcard/Download/
+```
+Then import it in the app.
+
+### Start chatting
+
+1. Tap the **Chat** tab
+2. The model name appears in the status bar at top
+3. Type your message and tap ▲ to send
+4. Responses stream in real time
+5. Tap ■ to stop generation early
+
+---
+
+## Settings Reference
+
+| Setting | Default | Description |
+|---|---|---|
+| Temperature | 0.7 | Creativity (0 = deterministic, 2 = very random) |
+| Top P | 0.9 | Nucleus sampling cutoff |
+| Max Tokens | 512 | Maximum tokens per response |
+| Context Length | 2048 | How many tokens of history to keep |
+| System Prompt | Built-in | Personality/instructions for the AI |
+
+---
+
+## Performance on Samsung Galaxy Fold 7 (Snapdragon 8 Elite)
+
+| Model | Load Time | Speed |
+|---|---|---|
+| Llama 3.2 1B Q4_K_M | ~5s | ~35–50 t/s |
+| Phi-3 Mini Q4_K_M | ~10s | ~20–35 t/s |
+| Llama 3.2 3B Q4_K_M | ~12s | ~18–28 t/s |
+| Gemma 2 2B Q4_K_M | ~10s | ~20–30 t/s |
+| Mistral 7B Q4_K_M | ~25s | ~8–14 t/s |
+
+---
+
+## Troubleshooting
+
+### "Unable to load script"
+Bundle the JS before building:
+```bash
+npx react-native bundle --platform android --dev false \
+  --entry-file index.js \
+  --bundle-output android/app/src/main/assets/index.android.bundle \
+  --assets-dest android/app/src/main/res/
+```
+
+### Model fails to load
+- Try a smaller model (Q4_K_M or Q3_K_M variant)
+- Restart the app and try again
+- Check free RAM: Settings > Device Care > Memory
+
+### Build fails with NDK error
+Install NDK via Android Studio: SDK Manager > SDK Tools > NDK (Side by side) > 26.1.10909125
+
+### App not visible in drawer
+```bash
+adb shell am start -n com.irai/.MainActivity
+```
+
+---
+
+## Permissions
+
+| Permission | Reason |
+|---|---|
+| `READ_EXTERNAL_STORAGE` | Import GGUF model files |
+| `WRITE_EXTERNAL_STORAGE` | Save downloaded/imported models |
+| `INTERNET` | Download models from Hugging Face |
+
+---
+
+## Architecture
+
+```
+User Input
+    │
+    ▼
+ChatScreen.tsx
+    │
+    ├── buildPrompt() ── Converts message history to ChatML format
+    │
+    ▼
+llamaContext.completion()   ← llama.rn (llama.cpp native)
+    │
+    ├── Token callback (streaming) → updateLastAssistantMessage()
+    │
+    ▼
+Zustand Store → React → FlatList → MessageBubble
+```
+
+**Prompt format:** ChatML
+```
+<|im_start|>system
+You are irai...<|im_end|>
+<|im_start|>user
+Hello<|im_end|>
+<|im_start|>assistant
+```
+
+---
+
+## Acknowledgments
+
+- [llama.rn](https://github.com/mybigday/llama.rn) — React Native bindings for llama.cpp
+- [llama.cpp](https://github.com/ggerganov/llama.cpp) — C++ LLM inference engine
+- [PocketPal AI](https://github.com/a-ghorbani/pocketpal-ai) — UX inspiration
+- [Hugging Face](https://huggingface.co) — Model repository
+
+---
+
+## License
+
+MIT License
+
+---
+
+*Built with React Native · Powered by llama.cpp · Runs 100% on-device*
