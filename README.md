@@ -6,6 +6,25 @@ Designed for the **Samsung Galaxy Fold 7** (Snapdragon 8 Elite, 12GB RAM) but wo
 
 ---
 
+## Download & Install (No Build Required)
+
+> Direct APK — install without building from source.
+
+**[⬇ Download irai-v1.0.0-android.apk](https://github.com/ikppramesh/irai/raw/main/releases/irai-v1.0.0-android.apk)** (123 MB)
+
+### Installation steps
+
+1. On your Android phone, open the link above in Chrome
+2. Tap **Download** and wait for it to complete
+3. Go to **Settings → Apps → Special app access → Install unknown apps → Chrome** and enable it
+4. Open the downloaded APK from your notification or Downloads folder
+5. Tap **Install**
+6. Open **irai** → Models tab → **↓ Download** → pick a model → **Load** → start chatting
+
+> Tested on Samsung Galaxy Fold 7. Requires Android 12+ (arm64).
+
+---
+
 ## Features
 
 - **100% Offline** — all inference runs locally via llama.cpp
