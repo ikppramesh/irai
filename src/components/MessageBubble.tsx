@@ -1,31 +1,29 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Image } from 'react-native';
 import { Message } from '../store/useAppStore';
-import { colors, spacing, fontSizes, fonts } from '../theme';
+import { colors, spacing, fontSizes, fonts, borderRadius } from '../theme';
 
 interface Props {
   message: Message;
   isStreaming?: boolean; // true for the message currently being generated
 }
 
-// Blinking block cursor that pulses while streaming
+// Soft pulsing dot shown while a response is streaming
 const StreamCursor: React.FC = () => {
-  const opacity = useRef(new Animated.Value(1)).current;
+  const opacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
     const pulse = Animated.loop(
       Animated.sequence([
-        Animated.timing(opacity, { toValue: 0, duration: 500, useNativeDriver: true }),
         Animated.timing(opacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.3, duration: 500, useNativeDriver: true }),
       ]),
     );
     pulse.start();
     return () => pulse.stop();
   }, [opacity]);
 
-  return (
-    <Animated.Text style={[styles.cursor, { opacity }]}>█</Animated.Text>
-  );
+  return <Animated.View style={[styles.cursorDot, { opacity }]} />;
 };
 
 export const MessageBubble: React.FC<Props> = ({ message, isStreaming = false }) => {
@@ -35,18 +33,24 @@ export const MessageBubble: React.FC<Props> = ({ message, isStreaming = false })
   const isPipelineStep = message.isPipelineStep;
 
   const agentColor = message.agentColor || colors.primary;
-  const agentName  = (message.agentName || 'irai').toUpperCase();
-  const agentIcon  = message.agentIcon || '▸';
+  const agentName  = message.agentName || 'irai';
+  const agentIcon  = message.agentIcon || '✦';
 
   // ── User message ─────────────────────────────────────────────────────────────
   if (isUser) {
     return (
       <View style={styles.userRow}>
         <View style={styles.userBlock}>
-          <Text style={styles.userPrompt}>
-            <Text style={styles.userPromptSymbol}>{'[USER]> '}</Text>
-            {message.content}
-          </Text>
+          {!!message.images?.length && (
+            <View style={styles.userImagesRow}>
+              {message.images.map((uri) => (
+                <Image key={uri} source={{ uri }} style={styles.userImage} />
+              ))}
+            </View>
+          )}
+          {!!message.content && (
+            <Text style={styles.userPrompt}>{message.content}</Text>
+          )}
         </View>
       </View>
     );
@@ -60,16 +64,16 @@ export const MessageBubble: React.FC<Props> = ({ message, isStreaming = false })
         onPress={() => setExpanded(!expanded)}
         activeOpacity={0.85}>
         <Text style={[styles.pipelineHeader, { color: agentColor }]}>
-          {expanded ? '▼' : '▶'} {agentIcon} {agentName}
-          <Text style={styles.pipelineTag}> [AGENT STEP]</Text>
+          {agentIcon} {agentName}
+          <Text style={styles.pipelineTag}>  {expanded ? '▾' : '▸'} step</Text>
         </Text>
         {expanded && (
-          <Text style={[styles.pipelineContent, { color: agentColor + 'CC' }]}>
+          <Text style={styles.pipelineContent}>
             {message.content}
           </Text>
         )}
         {!expanded && (
-          <Text style={[styles.pipelinePreview, { color: agentColor + '88' }]}>
+          <Text style={styles.pipelinePreview}>
             {message.content.slice(0, 90).replace(/\n/g, ' ')}…
           </Text>
         )}
@@ -80,25 +84,20 @@ export const MessageBubble: React.FC<Props> = ({ message, isStreaming = false })
   // ── AI message ────────────────────────────────────────────────────────────
   return (
     <View style={styles.aiBlock}>
-      {/* Header bar */}
-      <View style={[styles.aiHeader, { borderBottomColor: agentColor + '55' }]}>
-        <Text style={[styles.aiHeaderText, { color: agentColor }]}>
-          {'┌─[ '}{agentIcon} {agentName}{' ]'}
-        </Text>
+      {/* Agent label */}
+      <View style={styles.aiHeader}>
+        <View style={[styles.agentDot, { backgroundColor: agentColor }]} />
+        <Text style={styles.aiHeaderText}>{agentName}</Text>
       </View>
 
       {/* Content */}
       <View style={styles.aiBody}>
         {isWaiting ? (
-          // Waiting for first token
-          <Text style={styles.waitingText}>
-            {'> initializing'}
-            <StreamCursor />
-          </Text>
+          <StreamCursor />
         ) : (
           <Text style={styles.aiText}>
-            {'> '}
             {message.content}
+            {isStreaming && <Text> </Text>}
             {isStreaming && <StreamCursor />}
           </Text>
         )}
@@ -106,11 +105,9 @@ export const MessageBubble: React.FC<Props> = ({ message, isStreaming = false })
 
       {/* Footer with token stats */}
       {!isStreaming && message.tokensPerSec && message.tokensPerSec > 0 && (
-        <View style={styles.aiFooter}>
-          <Text style={styles.metaText}>
-            {'└─[ '}{message.tokensPerSec.toFixed(1)}{' t/s | '}{message.tokens}{' tokens ]'}
-          </Text>
-        </View>
+        <Text style={styles.metaText}>
+          {message.tokensPerSec.toFixed(1)} tok/s · {message.tokens} tokens
+        </Text>
       )}
     </View>
   );
@@ -120,119 +117,114 @@ const styles = StyleSheet.create({
   // ── User ─────────────────────────────────────────────────────────────────
   userRow: {
     marginVertical: spacing.xs,
-    marginHorizontal: spacing.sm,
+    marginHorizontal: spacing.md,
     alignItems: 'flex-end',
   },
   userBlock: {
-    maxWidth: '88%',
+    maxWidth: '86%',
     backgroundColor: colors.userBubble,
-    borderWidth: 1,
-    borderColor: colors.primaryDim + '66',
-    borderRadius: 2,
+    borderRadius: borderRadius.xl + 6,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
+    paddingVertical: 10,
   },
   userPrompt: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.sans,
     fontSize: fontSizes.md,
     color: colors.userBubbleText,
-    lineHeight: 20,
+    lineHeight: 21,
   },
-  userPromptSymbol: {
-    color: colors.primary,
-    fontWeight: 'bold',
+  userImagesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  userImage: {
+    width: 140,
+    height: 140,
+    borderRadius: borderRadius.lg,
   },
 
   // ── AI message ────────────────────────────────────────────────────────────
   aiBlock: {
-    marginVertical: spacing.xs,
-    marginHorizontal: spacing.sm,
-    backgroundColor: colors.aiBubble,
-    borderWidth: 1,
-    borderColor: colors.primaryDark,
-    borderRadius: 2,
-    overflow: 'hidden',
+    marginVertical: spacing.sm,
+    marginHorizontal: spacing.md,
   },
   aiHeader: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 5,
-    backgroundColor: '#001A0A',
-    borderBottomWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+    gap: 6,
+  },
+  agentDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   aiHeaderText: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.sansMedium,
     fontSize: fontSizes.xs,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    letterSpacing: 0.2,
   },
   aiBody: {
-    padding: spacing.md,
+    paddingLeft: 2,
   },
   aiText: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.sans,
     fontSize: fontSizes.md,
     color: colors.text,
-    lineHeight: 22,
-  },
-  waitingText: {
-    fontFamily: fonts.mono,
-    fontSize: fontSizes.md,
-    color: colors.textSecondary,
-    lineHeight: 22,
-  },
-  aiFooter: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderTopWidth: 1,
-    borderTopColor: colors.primaryDark,
+    lineHeight: 23,
   },
   metaText: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.sans,
     fontSize: fontSizes.xs,
     color: colors.textMuted,
+    marginTop: 6,
+    paddingLeft: 2,
   },
-  cursor: {
-    color: colors.primary,
-    fontFamily: fonts.mono,
-    fontSize: fontSizes.md,
+  cursorDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.primary,
+    marginLeft: 2,
   },
 
   // ── Pipeline step ─────────────────────────────────────────────────────────
   pipelineBlock: {
     marginVertical: 3,
-    marginHorizontal: spacing.sm,
-    backgroundColor: '#030D06',
-    borderWidth: 1,
-    borderColor: colors.primaryDark,
-    borderRadius: 2,
+    marginHorizontal: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderLeftWidth: 2,
-    borderLeftColor: colors.primaryDim,
+    borderLeftColor: colors.cardBorder,
   },
   pipelineHeader: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.sansMedium,
     fontSize: fontSizes.xs,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    marginBottom: 2,
+    fontWeight: '600',
+    letterSpacing: 0.2,
   },
   pipelineTag: {
     color: colors.textMuted,
     fontWeight: '400',
   },
   pipelineContent: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.sans,
     fontSize: fontSizes.sm,
     lineHeight: 18,
     marginTop: spacing.xs,
+    color: colors.textSecondary,
   },
   pipelinePreview: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.sans,
     fontSize: fontSizes.xs,
     lineHeight: 16,
+    color: colors.textMuted,
     fontStyle: 'italic',
   },
 });

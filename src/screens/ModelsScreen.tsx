@@ -16,7 +16,21 @@ import RNFS from 'react-native-fs';
 import { initLlama } from 'llama.rn';
 import { useAppStore, ModelInfo } from '../store/useAppStore';
 import { colors, spacing, fontSizes, borderRadius } from '../theme';
-import { getModelFiles, MODELS_DIR, ensureModelsDir, formatBytes } from '../utils/modelUtils';
+import { getModelFiles, getMmprojFiles, MODELS_DIR, ensureModelsDir, formatBytes } from '../utils/modelUtils';
+
+// A small, mobile-friendly vision model + projector pair for image understanding.
+// More vision (mmproj) models can be imported manually — look for "mmproj" GGUF
+// files paired with a vision-capable base model (e.g. on the ggml-org HF org).
+const VISION_MODEL = {
+  id: 'smolvlm-500m',
+  name: 'SmolVLM 500M Instruct',
+  description: 'HuggingFace · Tiny vision-language model for image understanding',
+  size: '~0.5 GB',
+  filename: 'SmolVLM-500M-Instruct-Q8_0.gguf',
+  url: 'https://huggingface.co/ggml-org/SmolVLM-500M-Instruct-GGUF/resolve/main/SmolVLM-500M-Instruct-Q8_0.gguf',
+  mmprojFilename: 'mmproj-SmolVLM-500M-Instruct-Q8_0.gguf',
+  mmprojUrl: 'https://huggingface.co/ggml-org/SmolVLM-500M-Instruct-GGUF/resolve/main/mmproj-SmolVLM-500M-Instruct-Q8_0.gguf',
+};
 
 // Curated list of popular mobile-friendly GGUF models
 const DOWNLOADABLE_MODELS = [
@@ -97,22 +111,34 @@ export const ModelsScreen: React.FC = () => {
     isModelLoading,
     loadedModelPath,
     settings,
+    mmprojPath,
+    isVisionEnabled,
+    isVisionLoading,
+    visionSupport,
     setCurrentModel,
     setLlamaContext,
     setIsModelLoading,
     setLoadedModelPath,
+    setMmprojPath,
+    setIsVisionEnabled,
+    setIsVisionLoading,
+    setVisionSupport,
   } = useAppStore();
 
   const [models, setModels] = useState<ModelInfo[]>([]);
+  const [mmprojFiles, setMmprojFiles] = useState<ModelInfo[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [downloads, setDownloads] = useState<Record<string, DownloadState>>({});
+  const [visionDownloading, setVisionDownloading] = useState(false);
+  const [visionDownloadProgress, setVisionDownloadProgress] = useState(0);
 
   const loadModelList = useCallback(async () => {
     setRefreshing(true);
     try {
-      const files = await getModelFiles();
+      const [files, mmprojs] = await Promise.all([getModelFiles(), getMmprojFiles()]);
       setModels(files);
+      setMmprojFiles(mmprojs);
     } catch (e) {
       console.error(e);
     } finally {
@@ -240,6 +266,9 @@ export const ModelsScreen: React.FC = () => {
       setCurrentModel(null);
       setLoadedModelPath(null);
     }
+    // A fresh context has no multimodal projector attached yet.
+    setIsVisionEnabled(false);
+    setVisionSupport(null);
     setIsModelLoading(true);
     try {
       const ctx = await initLlama({
@@ -267,7 +296,129 @@ export const ModelsScreen: React.FC = () => {
     setLlamaContext(null);
     setCurrentModel(null);
     setLoadedModelPath(null);
+    setIsVisionEnabled(false);
+    setVisionSupport(null);
     Alert.alert('Unloaded', 'Model removed from memory.');
+  };
+
+  // ─── Vision (mmproj) ─────────────────────────────────────────────────────────
+  const handleImportMmproj = async () => {
+    try {
+      const result = await DocumentPicker.pick({
+        type: [DocumentPicker.types.allFiles],
+        copyTo: 'documentDirectory',
+      });
+      const file = result[0];
+      if (!file.name?.endsWith('.gguf')) {
+        Alert.alert('Invalid File', 'Please select a .gguf mmproj (vision projector) file.');
+        return;
+      }
+      if (!/mmproj/i.test(file.name)) {
+        Alert.alert(
+          'Rename Recommended',
+          'For irai to recognize this as a vision projector, its filename should contain "mmproj". It was imported, but you may need to rename it.',
+        );
+      }
+      if (file.fileCopyUri) {
+        await loadModelList();
+        Alert.alert('Imported', `${file.name} has been imported.`);
+      }
+    } catch (e: any) {
+      if (!DocumentPicker.isCancel(e)) {
+        Alert.alert('Error', e.message || 'Failed to import vision projector');
+      }
+    }
+  };
+
+  const handleDownloadVisionPair = async () => {
+    await ensureModelsDir();
+    const modelDest = `${MODELS_DIR}/${VISION_MODEL.filename}`;
+    const mmprojDest = `${MODELS_DIR}/${VISION_MODEL.mmprojFilename}`;
+
+    if ((await RNFS.exists(modelDest)) && (await RNFS.exists(mmprojDest))) {
+      Alert.alert('Already Downloaded', `${VISION_MODEL.name} is already in your models list.`);
+      return;
+    }
+
+    setVisionDownloading(true);
+    setVisionDownloadProgress(0);
+    try {
+      for (const [from, to] of [
+        [VISION_MODEL.url, modelDest],
+        [VISION_MODEL.mmprojUrl, mmprojDest],
+      ]) {
+        if (await RNFS.exists(to)) continue;
+        const { promise } = RNFS.downloadFile({
+          fromUrl: from,
+          toFile: to,
+          progress: (res) => {
+            setVisionDownloadProgress(Math.floor((res.bytesWritten / res.contentLength) * 100));
+          },
+          progressDivider: 1,
+          background: false,
+        });
+        const result = await promise;
+        if (result.statusCode !== 200) throw new Error(`HTTP ${result.statusCode}`);
+      }
+      await loadModelList();
+      Alert.alert(
+        'Vision Model Ready',
+        `${VISION_MODEL.name} and its vision projector were downloaded. Load the model, then tap "Enable Vision".`,
+      );
+    } catch (e: any) {
+      for (const path of [modelDest, mmprojDest]) {
+        if (await RNFS.exists(path)) await RNFS.unlink(path);
+      }
+      Alert.alert('Download Failed', e.message || 'Could not download the vision model.');
+    } finally {
+      setVisionDownloading(false);
+    }
+  };
+
+  const handleEnableVision = async (mmproj: ModelInfo) => {
+    if (!llamaContext) {
+      Alert.alert('No Model Loaded', 'Load a vision-capable model first, then enable vision.');
+      return;
+    }
+    setIsVisionLoading(true);
+    try {
+      const ok = await llamaContext.initMultimodal({ path: mmproj.path, use_gpu: true });
+      if (!ok) throw new Error('The loaded model may not be compatible with this vision projector.');
+      const support = await llamaContext.getMultimodalSupport();
+      setMmprojPath(mmproj.path);
+      setIsVisionEnabled(true);
+      setVisionSupport(support);
+      Alert.alert('Vision Enabled', 'You can now attach images in the Chat tab.');
+    } catch (e: any) {
+      setIsVisionEnabled(false);
+      setVisionSupport(null);
+      Alert.alert('Vision Setup Failed', e.message || 'Could not initialize the vision projector.');
+    } finally {
+      setIsVisionLoading(false);
+    }
+  };
+
+  const handleDisableVision = async () => {
+    if (llamaContext) {
+      try { await llamaContext.releaseMultimodal(); } catch (_) {}
+    }
+    setIsVisionEnabled(false);
+    setVisionSupport(null);
+  };
+
+  const handleDeleteMmproj = (mmproj: ModelInfo) => {
+    Alert.alert('Delete Vision Projector', `Delete "${mmproj.name}"?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          if (mmprojPath === mmproj.path) await handleDisableVision();
+          await RNFS.unlink(mmproj.path);
+          loadModelList();
+        },
+      },
+    ]);
   };
 
   const handleDeleteModel = (model: ModelInfo) => {
@@ -390,6 +541,75 @@ export const ModelsScreen: React.FC = () => {
         </View>
       )}
 
+      {/* Vision (image understanding) section */}
+      <View style={styles.visionSection}>
+        <View style={styles.visionHeaderRow}>
+          <Text style={styles.visionTitle}>🖼 Vision (image understanding)</Text>
+          <View
+            style={[
+              styles.visionStatusPill,
+              { backgroundColor: isVisionEnabled ? colors.success : colors.surfaceVariant },
+            ]}>
+            <Text style={[styles.visionStatusText, { color: isVisionEnabled ? '#000' : colors.textSecondary }]}>
+              {isVisionEnabled ? 'ENABLED' : 'DISABLED'}
+            </Text>
+          </View>
+        </View>
+        <Text style={styles.visionSubtitle}>
+          Load a vision-capable model + its mmproj projector to let irai understand images you attach in Chat.
+        </Text>
+
+        {mmprojFiles.length === 0 ? (
+          <View style={styles.visionActionsRow}>
+            <TouchableOpacity
+              style={[styles.dlBtn, styles.downloadBtn, visionDownloading && styles.actionBtnDisabled]}
+              onPress={handleDownloadVisionPair}
+              disabled={visionDownloading}>
+              <Text style={styles.dlBtnText}>
+                {visionDownloading ? `↓ ${visionDownloadProgress}%` : `↓ Get ${VISION_MODEL.name}`}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.dlBtn, styles.importVisionBtn]} onPress={handleImportMmproj}>
+              <Text style={styles.dlBtnText}>+ Import mmproj</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          mmprojFiles.map((mmproj) => {
+            const isActive = mmprojPath === mmproj.path && isVisionEnabled;
+            return (
+              <View key={mmproj.path} style={styles.mmprojCard}>
+                <View style={styles.modelTexts}>
+                  <Text style={styles.modelName} numberOfLines={1}>{mmproj.name}</Text>
+                  <Text style={styles.modelSize}>
+                    {mmproj.displaySize}
+                    {isActive && visionSupport
+                      ? `  ·  vision:${visionSupport.vision ? '✓' : '✗'} audio:${visionSupport.audio ? '✓' : '✗'}`
+                      : ''}
+                  </Text>
+                </View>
+                <View style={styles.modelActions}>
+                  {isActive ? (
+                    <TouchableOpacity style={[styles.btn, styles.unloadBtn]} onPress={handleDisableVision}>
+                      <Text style={styles.btnText}>Disable</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      style={[styles.btn, styles.loadBtn]}
+                      onPress={() => handleEnableVision(mmproj)}
+                      disabled={isVisionLoading}>
+                      <Text style={styles.btnText}>{isVisionLoading ? '...' : 'Enable'}</Text>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity style={[styles.btn, styles.deleteBtn]} onPress={() => handleDeleteMmproj(mmproj)}>
+                    <Text style={styles.btnText}>Delete</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })
+        )}
+      </View>
+
       {/* Downloaded models list */}
       <FlatList
         data={models}
@@ -489,6 +709,33 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   loadingText: { color: colors.text, fontSize: fontSizes.sm },
+
+  // Vision section
+  visionSection: {
+    margin: spacing.md,
+    marginBottom: 0,
+    padding: spacing.md,
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+  },
+  visionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  visionTitle: { fontSize: fontSizes.md, fontWeight: '700', color: colors.text },
+  visionStatusPill: { paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: borderRadius.full },
+  visionStatusText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+  visionSubtitle: {
+    fontSize: fontSizes.xs, color: colors.textSecondary,
+    marginTop: 4, marginBottom: spacing.sm, lineHeight: 18,
+  },
+  visionActionsRow: { flexDirection: 'row', gap: spacing.sm },
+  importVisionBtn: { backgroundColor: colors.secondary, flex: 1 },
+  mmprojCard: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: spacing.sm,
+    borderTopWidth: 1, borderTopColor: colors.divider,
+  },
+  actionBtnDisabled: { opacity: 0.6 },
 
   // Model list
   list: { padding: spacing.md },

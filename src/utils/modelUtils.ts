@@ -17,11 +17,29 @@ export const formatBytes = (bytes: number): string => {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 };
 
+const isGgufFile = (name: string) => name.endsWith('.gguf') || name.endsWith('.bin');
+const isMmprojFile = (name: string) => /mmproj/i.test(name);
+
 export const getModelFiles = async () => {
   await ensureModelsDir();
   const files = await RNFS.readDir(MODELS_DIR);
   return files
-    .filter((f) => f.name.endsWith('.gguf') || f.name.endsWith('.bin'))
+    .filter((f) => isGgufFile(f.name) && !isMmprojFile(f.name))
+    .map((f) => ({
+      name: f.name.replace(/\.(gguf|bin)$/, ''),
+      path: f.path,
+      size: f.size,
+      displaySize: formatBytes(f.size),
+    }));
+};
+
+// Multimodal projector (mmproj) files — paired with a vision-capable model
+// to enable image (and sometimes audio) understanding via llama.rn's mtmd support.
+export const getMmprojFiles = async () => {
+  await ensureModelsDir();
+  const files = await RNFS.readDir(MODELS_DIR);
+  return files
+    .filter((f) => isGgufFile(f.name) && isMmprojFile(f.name))
     .map((f) => ({
       name: f.name.replace(/\.(gguf|bin)$/, ''),
       path: f.path,

@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useAppStore, Message } from '../store/useAppStore';
 import { MessageBubble } from '../components/MessageBubble';
-import { ChatInput } from '../components/ChatInput';
+import { ChatInput, AttachedImage } from '../components/ChatInput';
 import { ModelBar } from '../components/ModelBar';
 import { colors, spacing, fontSizes, fonts } from '../theme';
 import { getAgent, MULTI_AGENT_PIPELINE, buildPipelinePrompt } from '../utils/agents';
@@ -90,7 +90,7 @@ const buildRecentContextForMemory = (messages: Message[], currentQuery: string):
 export const ChatScreen: React.FC = () => {
   const {
     messages, llamaContext, isGenerating, settings,
-    activeAgentId, isMultiAgentMode, memories,
+    activeAgentId, isMultiAgentMode, memories, isVisionEnabled,
     addMessage, updateLastAssistantMessage, clearMessages,
     setIsGenerating, setMemories,
   } = useAppStore();
@@ -179,6 +179,81 @@ export const ChatScreen: React.FC = () => {
     // Self-learn from this exchange
     if (settings.memoryEnabled && full.trim()) {
       const newMems = await learnFromExchange(userText, full, memories);
+      if (newMems.length > 0) {
+        const updatedMems = await loadMemories();
+        setMemories(updatedMems);
+      }
+    }
+  };
+
+  // ── Vision (image) generation ───────────────────────────────────────────────
+  // Images are always answered by the currently active single agent — the
+  // multi-agent pipeline is text-only.
+  const runVisionAgent = async (userText: string, image: AttachedImage) => {
+    const agent = getAgent(activeAgentId);
+    const queryForMemory = userText || 'Describe this image.';
+    const systemPrompt = agent.systemPrompt + getMemoryInjection(queryForMemory);
+
+    // Prior turns as plain text; the current turn carries the image.
+    const priorTurns = messagesRef.current
+      .filter((m) => m.role !== 'system' && !m.isPipelineStep && m.content.trim() !== '')
+      .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+
+    const oaiMessages = [
+      { role: 'system', content: systemPrompt },
+      ...priorTurns,
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: userText || 'Describe this image in detail.' },
+          { type: 'image_url', image_url: { url: `data:${image.mime};base64,${image.base64}` } },
+        ],
+      },
+    ];
+
+    const placeholder: Message = {
+      id: `${Date.now()}_ai`,
+      role: 'assistant', content: '',
+      timestamp: Date.now(),
+      agentId: agent.id, agentName: agent.name,
+      agentIcon: agent.icon, agentColor: agent.color,
+    };
+    addMessage(placeholder);
+    scrollToBottom();
+
+    let full = '';
+    let tokenCount = 0;
+    const startMs = Date.now();
+
+    try {
+      await llamaContext.completion(
+        {
+          messages: oaiMessages,
+          n_predict: settings.maxTokens,
+          temperature: settings.temperature,
+          top_p: settings.topP,
+          stop: settings.stopWords,
+          repeat_penalty: 1.1,
+        },
+        (data: { token: string }) => {
+          full += data.token;
+          tokenCount++;
+          updateLastAssistantMessage(full);
+          scrollToBottom();
+        },
+      );
+      const tps = tokenCount / ((Date.now() - startMs) / 1000);
+      updateLastAssistantMessage(full, { tokens: tokenCount, tokensPerSec: tps });
+    } catch (e: any) {
+      if (!e?.message?.includes('abort')) {
+        updateLastAssistantMessage(
+          '[Error understanding image — make sure a vision-compatible model + mmproj is loaded]',
+        );
+      }
+    }
+
+    if (settings.memoryEnabled && full.trim()) {
+      const newMems = await learnFromExchange(queryForMemory, full, memories);
       if (newMems.length > 0) {
         const updatedMems = await loadMemories();
         setMemories(updatedMems);
@@ -276,9 +351,13 @@ export const ChatScreen: React.FC = () => {
 
   // ── Main send handler ───────────────────────────────────────────────────────
 
-  const handleSend = async (userText: string) => {
+  const handleSend = async (userText: string, image?: AttachedImage) => {
     if (!llamaContext) {
       Alert.alert('No Model', 'Please load a model from the Models tab first.');
+      return;
+    }
+    if (image && !isVisionEnabled) {
+      Alert.alert('Vision Not Enabled', 'Enable vision for the loaded model in the Models tab first.');
       return;
     }
 
@@ -286,12 +365,15 @@ export const ChatScreen: React.FC = () => {
       id: `${Date.now()}_user`,
       role: 'user', content: userText,
       timestamp: Date.now(),
+      images: image ? [image.uri] : undefined,
     };
     addMessage(userMsg);
     setIsGenerating(true);
 
     try {
-      if (isMultiAgentMode) {
+      if (image) {
+        await runVisionAgent(userText, image);
+      } else if (isMultiAgentMode) {
         await runMultiAgentPipeline(userText);
       } else {
         await runSingleAgent(userText);
@@ -321,12 +403,11 @@ export const ChatScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Terminal title bar */}
       <View style={styles.header}>
-        <Text style={styles.title}>{'╔══ IRAI TERMINAL ══╗'}</Text>
+        <Text style={styles.title}>irai</Text>
         {visibleMessages.length > 0 && (
           <TouchableOpacity onPress={handleClear} style={styles.clearBtn}>
-            <Text style={styles.clearText}>{'[CLR]'}</Text>
+            <Text style={styles.clearText}>New chat</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -347,20 +428,14 @@ export const ChatScreen: React.FC = () => {
         )}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyAscii}>
-              {'  _  ____   _    ___ \n' +
-               ' (_)|  _ \\ / \\  |_ _|\n' +
-               ' | || |_) / _ \\  | | \n' +
-               ' | ||  _ < ___ \\ | | \n' +
-               ' |_||_| \\_\\   \\_\\___|'}
-            </Text>
-            <Text style={styles.emptySubtitle}>{'// offline AI terminal'}</Text>
+            <Text style={styles.emptyGlyph}>{'✦'}</Text>
+            <Text style={styles.emptyTitle}>How can I help you today?</Text>
             <Text style={styles.emptyHint}>
               {llamaContext
                 ? isMultiAgentMode
-                  ? '>> MULTI-AGENT MODE ACTIVE\n>> agents share full conversation context'
-                  : '>> model loaded. ready for input.'
-                : '>> no model loaded.\n>> go to MODELS tab to load a model.'}
+                  ? 'Multi-agent mode is active — agents share the full conversation context.'
+                  : 'Your model is loaded and ready. Ask anything, or attach a photo.'
+                : 'Load a model from the Models tab to get started.'}
             </Text>
           </View>
         }
@@ -374,6 +449,7 @@ export const ChatScreen: React.FC = () => {
         onStop={handleStop}
         isGenerating={isGenerating}
         disabled={!llamaContext}
+        visionEnabled={isVisionEnabled}
       />
     </SafeAreaView>
   );
@@ -383,42 +459,40 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.xs,
-    borderBottomWidth: 1, borderBottomColor: colors.primaryDark,
+    paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.xs,
   },
   title: {
-    fontFamily: fonts.mono,
-    fontSize: fontSizes.sm,
-    fontWeight: '700',
-    color: colors.primary,
-    letterSpacing: 0.5,
+    fontFamily: fonts.sansMedium,
+    fontSize: fontSizes.lg,
+    fontWeight: '600',
+    color: colors.text,
   },
-  clearBtn: { padding: spacing.sm },
-  clearText: { fontFamily: fonts.mono, color: colors.error, fontSize: fontSizes.xs, fontWeight: '700' },
+  clearBtn: { paddingHorizontal: spacing.sm, paddingVertical: 4 },
+  clearText: { fontFamily: fonts.sans, color: colors.primary, fontSize: fontSizes.sm, fontWeight: '600' },
   list: { paddingVertical: spacing.sm },
   emptyList: { flex: 1 },
   emptyContainer: {
     flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl,
   },
-  emptyAscii: {
-    fontFamily: fonts.mono,
-    fontSize: 13,
+  emptyGlyph: {
+    fontSize: 32,
     color: colors.primary,
-    lineHeight: 20,
-    marginBottom: spacing.lg,
-    textAlign: 'center',
-  },
-  emptySubtitle: {
-    fontFamily: fonts.mono,
-    fontSize: fontSizes.sm,
-    color: colors.textSecondary,
     marginBottom: spacing.md,
   },
+  emptyTitle: {
+    fontFamily: fonts.sansMedium,
+    fontSize: fontSizes.xl,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
   emptyHint: {
-    fontFamily: fonts.mono,
-    fontSize: fontSizes.xs,
+    fontFamily: fonts.sans,
+    fontSize: fontSizes.sm,
     color: colors.textMuted,
     textAlign: 'center',
     lineHeight: 20,
+    maxWidth: 280,
   },
 });
