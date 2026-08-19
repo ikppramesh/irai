@@ -20,6 +20,45 @@
 
 ---
 
+## Changelog
+
+### v1.0.0 (latest)
+
+**Batman Theme**
+- Satin black background (`#0F0F0F`) with Batman gold (`#FFB300`) accent
+- Deep charcoal surface layers for depth
+
+**Markdown Code Blocks**
+- AI responses now render fenced code blocks (` ```lang `) as styled blocks — dark background, language label, monospace font, horizontal scroll for long lines
+- One-tap **Copy** button on each code block copies to clipboard
+- Inline `` `code` `` rendered with gold highlight
+- **Bold**, *italic*, `#` headings, and `- bullet` lists all rendered natively
+
+**Android Safe Area Fix**
+- Fixed overlapping with status bar (clock/battery) and gesture/navigation bar
+- Tab bar now dynamically adapts its height to the system nav bar height using `useSafeAreaInsets()`
+- All screens use `react-native-safe-area-context` with `edges={['top']}` — no more double-padding
+
+**Vision / Image Support**
+- Attach photos from camera or gallery via 📷 button
+- Ask questions about images using vision-capable models (LLaVA, Moondream, MobileVLM)
+
+**Multi-Agent Pipeline**
+- 7 specialist agents: irai, Reasoner, Coder, Writer, Analyst, Critic, Planner
+- Multi-agent mode: agents debate → Synthesizer produces the final answer
+- Full conversation context passed to every pipeline step
+
+**Persistent Memory**
+- Auto-learns from conversations (places, topics, user facts)
+- Pre-seeded with Hyderabad food/tech knowledge
+- Cross-turn memory retrieval (follow-up questions find context from prior turns)
+
+**Streaming with Cursor**
+- Pulsing cursor dot while model generates
+- Full markdown rendered after generation completes
+
+---
+
 **irai** is a fully offline, on-device LLM chat application for Android built with React Native and [llama.rn](https://github.com/mybigday/llama.rn). It runs large language models (LLMs) entirely on your phone — no internet, no cloud, no data leaving your device.
 
 Designed for the **Samsung Galaxy Fold 7** (Snapdragon 8 Elite, 12GB RAM) but works on any modern Android phone.
