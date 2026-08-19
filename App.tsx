@@ -53,7 +53,7 @@ const App: React.FC = () => {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <StatusBar barStyle="light-content" backgroundColor={colors.background} translucent={false} />
+        <StatusBar barStyle="light-content" backgroundColor="#0F0F0F" translucent={false} />
         {showSplash ? (
           <SplashScreen onDone={() => setShowSplash(false)} />
         ) : (
