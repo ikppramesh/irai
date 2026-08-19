@@ -5,29 +5,94 @@ import {
   TouchableOpacity,
   StyleSheet,
   Text,
+  Image,
   Platform,
+  Alert,
+  ActionSheetIOS,
 } from 'react-native';
+import { launchCamera, launchImageLibrary, Asset } from 'react-native-image-picker';
 import { colors, spacing, fontSizes, fonts } from '../theme';
 
+export interface AttachedImage {
+  uri: string;
+  base64: string;
+  mime: string;
+}
+
 interface Props {
-  onSend: (text: string) => void;
+  onSend: (text: string, image?: AttachedImage) => void;
   onStop: () => void;
   isGenerating: boolean;
   disabled: boolean;
+  visionEnabled: boolean;
 }
 
-export const ChatInput: React.FC<Props> = ({ onSend, onStop, isGenerating, disabled }) => {
+const PICKER_OPTIONS = {
+  mediaType: 'photo' as const,
+  includeBase64: true,
+  maxWidth: 1024,
+  maxHeight: 1024,
+  quality: 0.8 as const,
+};
+
+export const ChatInput: React.FC<Props> = ({ onSend, onStop, isGenerating, disabled, visionEnabled }) => {
   const [text, setText] = useState('');
+  const [image, setImage] = useState<AttachedImage | null>(null);
   const inputRef = useRef<TextInput>(null);
 
   const handleSend = () => {
     const trimmed = text.trim();
-    if (!trimmed || disabled) return;
-    onSend(trimmed);
+    if ((!trimmed && !image) || disabled) return;
+    onSend(trimmed, image ?? undefined);
     setText('');
+    setImage(null);
   };
 
-  const canSend = !!text.trim() && !disabled && !isGenerating;
+  const applyAsset = (asset?: Asset) => {
+    if (!asset?.uri || !asset?.base64) return;
+    setImage({ uri: asset.uri, base64: asset.base64, mime: asset.type || 'image/jpeg' });
+  };
+
+  const pickFromCamera = () => {
+    launchCamera(PICKER_OPTIONS, (res) => {
+      if (res.didCancel || res.errorCode) return;
+      applyAsset(res.assets?.[0]);
+    });
+  };
+
+  const pickFromGallery = () => {
+    launchImageLibrary(PICKER_OPTIONS, (res) => {
+      if (res.didCancel || res.errorCode) return;
+      applyAsset(res.assets?.[0]);
+    });
+  };
+
+  const handleAttachPress = () => {
+    if (!visionEnabled) {
+      Alert.alert(
+        'Vision Not Enabled',
+        'Load a vision-capable model and its mmproj projector from the Models tab, then tap "Enable Vision" to attach images.',
+      );
+      return;
+    }
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: ['Cancel', 'Take Photo', 'Choose from Library'], cancelButtonIndex: 0 },
+        (index) => {
+          if (index === 1) pickFromCamera();
+          if (index === 2) pickFromGallery();
+        },
+      );
+    } else {
+      Alert.alert('Attach Image', undefined, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Take Photo', onPress: pickFromCamera },
+        { text: 'Choose from Gallery', onPress: pickFromGallery },
+      ]);
+    }
+  };
+
+  const canSend = (!!text.trim() || !!image) && !disabled && !isGenerating;
 
   return (
     <View style={styles.container}>
@@ -39,14 +104,29 @@ export const ChatInput: React.FC<Props> = ({ onSend, onStop, isGenerating, disab
         <Text style={styles.promptSeparator}> ══ </Text>
       </View>
 
+      {image && (
+        <View style={styles.imagePreviewRow}>
+          <Image source={{ uri: image.uri }} style={styles.imagePreview} />
+          <TouchableOpacity style={styles.imageRemoveBtn} onPress={() => setImage(null)}>
+            <Text style={styles.imageRemoveText}>{'✕'}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       <View style={styles.inputRow}>
+        <TouchableOpacity
+          style={[styles.attachBtn, !visionEnabled && styles.attachBtnDim]}
+          onPress={handleAttachPress}
+          disabled={disabled || isGenerating}>
+          <Text style={styles.attachBtnText}>{'📷'}</Text>
+        </TouchableOpacity>
         <Text style={styles.promptSymbol}>{'>'}</Text>
         <TextInput
           ref={inputRef}
           style={styles.input}
           value={text}
           onChangeText={setText}
-          placeholder={disabled ? 'load a model first...' : 'enter command...'}
+          placeholder={disabled ? 'load a model first...' : image ? 'describe what to look for...' : 'enter command...'}
           placeholderTextColor={colors.textMuted}
           multiline
           maxLength={4000}
@@ -100,6 +180,28 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: colors.primaryDark,
   },
+  imagePreviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  imagePreview: {
+    width: 56,
+    height: 56,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: colors.primaryDim,
+  },
+  imageRemoveBtn: {
+    marginLeft: spacing.sm,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.error,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imageRemoveText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -111,6 +213,13 @@ const styles = StyleSheet.create({
     paddingRight: spacing.xs,
     paddingVertical: spacing.xs,
   },
+  attachBtn: {
+    paddingHorizontal: 6,
+    paddingBottom: Platform.OS === 'android' ? 8 : 6,
+    marginRight: spacing.xs,
+  },
+  attachBtnDim: { opacity: 0.4 },
+  attachBtnText: { fontSize: fontSizes.lg },
   promptSymbol: {
     fontFamily: fonts.mono,
     fontSize: fontSizes.lg,

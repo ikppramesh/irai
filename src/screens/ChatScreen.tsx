@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useAppStore, Message } from '../store/useAppStore';
 import { MessageBubble } from '../components/MessageBubble';
-import { ChatInput } from '../components/ChatInput';
+import { ChatInput, AttachedImage } from '../components/ChatInput';
 import { ModelBar } from '../components/ModelBar';
 import { colors, spacing, fontSizes, fonts } from '../theme';
 import { getAgent, MULTI_AGENT_PIPELINE, buildPipelinePrompt } from '../utils/agents';
@@ -90,7 +90,7 @@ const buildRecentContextForMemory = (messages: Message[], currentQuery: string):
 export const ChatScreen: React.FC = () => {
   const {
     messages, llamaContext, isGenerating, settings,
-    activeAgentId, isMultiAgentMode, memories,
+    activeAgentId, isMultiAgentMode, memories, isVisionEnabled,
     addMessage, updateLastAssistantMessage, clearMessages,
     setIsGenerating, setMemories,
   } = useAppStore();
@@ -179,6 +179,81 @@ export const ChatScreen: React.FC = () => {
     // Self-learn from this exchange
     if (settings.memoryEnabled && full.trim()) {
       const newMems = await learnFromExchange(userText, full, memories);
+      if (newMems.length > 0) {
+        const updatedMems = await loadMemories();
+        setMemories(updatedMems);
+      }
+    }
+  };
+
+  // ── Vision (image) generation ───────────────────────────────────────────────
+  // Images are always answered by the currently active single agent — the
+  // multi-agent pipeline is text-only.
+  const runVisionAgent = async (userText: string, image: AttachedImage) => {
+    const agent = getAgent(activeAgentId);
+    const queryForMemory = userText || 'Describe this image.';
+    const systemPrompt = agent.systemPrompt + getMemoryInjection(queryForMemory);
+
+    // Prior turns as plain text; the current turn carries the image.
+    const priorTurns = messagesRef.current
+      .filter((m) => m.role !== 'system' && !m.isPipelineStep && m.content.trim() !== '')
+      .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+
+    const oaiMessages = [
+      { role: 'system', content: systemPrompt },
+      ...priorTurns,
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: userText || 'Describe this image in detail.' },
+          { type: 'image_url', image_url: { url: `data:${image.mime};base64,${image.base64}` } },
+        ],
+      },
+    ];
+
+    const placeholder: Message = {
+      id: `${Date.now()}_ai`,
+      role: 'assistant', content: '',
+      timestamp: Date.now(),
+      agentId: agent.id, agentName: agent.name,
+      agentIcon: agent.icon, agentColor: agent.color,
+    };
+    addMessage(placeholder);
+    scrollToBottom();
+
+    let full = '';
+    let tokenCount = 0;
+    const startMs = Date.now();
+
+    try {
+      await llamaContext.completion(
+        {
+          messages: oaiMessages,
+          n_predict: settings.maxTokens,
+          temperature: settings.temperature,
+          top_p: settings.topP,
+          stop: settings.stopWords,
+          repeat_penalty: 1.1,
+        },
+        (data: { token: string }) => {
+          full += data.token;
+          tokenCount++;
+          updateLastAssistantMessage(full);
+          scrollToBottom();
+        },
+      );
+      const tps = tokenCount / ((Date.now() - startMs) / 1000);
+      updateLastAssistantMessage(full, { tokens: tokenCount, tokensPerSec: tps });
+    } catch (e: any) {
+      if (!e?.message?.includes('abort')) {
+        updateLastAssistantMessage(
+          '[Error understanding image — make sure a vision-compatible model + mmproj is loaded]',
+        );
+      }
+    }
+
+    if (settings.memoryEnabled && full.trim()) {
+      const newMems = await learnFromExchange(queryForMemory, full, memories);
       if (newMems.length > 0) {
         const updatedMems = await loadMemories();
         setMemories(updatedMems);
@@ -276,9 +351,13 @@ export const ChatScreen: React.FC = () => {
 
   // ── Main send handler ───────────────────────────────────────────────────────
 
-  const handleSend = async (userText: string) => {
+  const handleSend = async (userText: string, image?: AttachedImage) => {
     if (!llamaContext) {
       Alert.alert('No Model', 'Please load a model from the Models tab first.');
+      return;
+    }
+    if (image && !isVisionEnabled) {
+      Alert.alert('Vision Not Enabled', 'Enable vision for the loaded model in the Models tab first.');
       return;
     }
 
@@ -286,12 +365,15 @@ export const ChatScreen: React.FC = () => {
       id: `${Date.now()}_user`,
       role: 'user', content: userText,
       timestamp: Date.now(),
+      images: image ? [image.uri] : undefined,
     };
     addMessage(userMsg);
     setIsGenerating(true);
 
     try {
-      if (isMultiAgentMode) {
+      if (image) {
+        await runVisionAgent(userText, image);
+      } else if (isMultiAgentMode) {
         await runMultiAgentPipeline(userText);
       } else {
         await runSingleAgent(userText);
@@ -374,6 +456,7 @@ export const ChatScreen: React.FC = () => {
         onStop={handleStop}
         isGenerating={isGenerating}
         disabled={!llamaContext}
+        visionEnabled={isVisionEnabled}
       />
     </SafeAreaView>
   );

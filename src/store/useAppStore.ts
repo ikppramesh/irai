@@ -13,6 +13,7 @@ export interface Message {
   agentIcon?: string;
   agentColor?: string;
   isPipelineStep?: boolean; // intermediate agent message in multi-agent mode
+  images?: string[]; // local URIs of images attached to a user message
 }
 
 export interface ModelInfo {
@@ -44,6 +45,12 @@ interface AppState {
   isModelLoading: boolean;
   loadedModelPath: string | null;
 
+  // Vision (multimodal)
+  mmprojPath: string | null;
+  isVisionEnabled: boolean;
+  isVisionLoading: boolean;
+  visionSupport: { vision: boolean; audio: boolean } | null;
+
   // Agents
   activeAgentId: string;
   isMultiAgentMode: boolean;
@@ -63,6 +70,10 @@ interface AppState {
   setIsGenerating: (v: boolean) => void;
   setIsModelLoading: (v: boolean) => void;
   setLoadedModelPath: (p: string | null) => void;
+  setMmprojPath: (p: string | null) => void;
+  setIsVisionEnabled: (v: boolean) => void;
+  setIsVisionLoading: (v: boolean) => void;
+  setVisionSupport: (s: { vision: boolean; audio: boolean } | null) => void;
   setActiveAgentId: (id: string) => void;
   setMultiAgentMode: (v: boolean) => void;
   setMemories: (m: Memory[]) => void;
@@ -76,6 +87,10 @@ export const useAppStore = create<AppState>((set) => ({
   llamaContext: null,
   isModelLoading: false,
   loadedModelPath: null,
+  mmprojPath: null,
+  isVisionEnabled: false,
+  isVisionLoading: false,
+  visionSupport: null,
   activeAgentId: 'general',
   isMultiAgentMode: false,
   memories: [],
@@ -108,6 +123,10 @@ export const useAppStore = create<AppState>((set) => ({
   setIsGenerating: (v) => set({ isGenerating: v }),
   setIsModelLoading: (v) => set({ isModelLoading: v }),
   setLoadedModelPath: (p) => set({ loadedModelPath: p }),
+  setMmprojPath: (p) => set({ mmprojPath: p }),
+  setIsVisionEnabled: (v) => set({ isVisionEnabled: v }),
+  setIsVisionLoading: (v) => set({ isVisionLoading: v }),
+  setVisionSupport: (s) => set({ visionSupport: s }),
   setActiveAgentId: (id) => set({ activeAgentId: id }),
   setMultiAgentMode: (v) => set({ isMultiAgentMode: v }),
   setMemories: (m) => set({ memories: m }),

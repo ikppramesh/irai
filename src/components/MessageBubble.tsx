@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Image } from 'react-native';
 import { Message } from '../store/useAppStore';
 import { colors, spacing, fontSizes, fonts } from '../theme';
 
@@ -43,10 +43,19 @@ export const MessageBubble: React.FC<Props> = ({ message, isStreaming = false })
     return (
       <View style={styles.userRow}>
         <View style={styles.userBlock}>
-          <Text style={styles.userPrompt}>
-            <Text style={styles.userPromptSymbol}>{'[USER]> '}</Text>
-            {message.content}
-          </Text>
+          {!!message.images?.length && (
+            <View style={styles.userImagesRow}>
+              {message.images.map((uri) => (
+                <Image key={uri} source={{ uri }} style={styles.userImage} />
+              ))}
+            </View>
+          )}
+          {!!message.content && (
+            <Text style={styles.userPrompt}>
+              <Text style={styles.userPromptSymbol}>{'[USER]> '}</Text>
+              {message.content}
+            </Text>
+          )}
         </View>
       </View>
     );
@@ -143,6 +152,19 @@ const styles = StyleSheet.create({
   userPromptSymbol: {
     color: colors.primary,
     fontWeight: 'bold',
+  },
+  userImagesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  userImage: {
+    width: 140,
+    height: 140,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: colors.primaryDim,
   },
 
   // ── AI message ────────────────────────────────────────────────────────────

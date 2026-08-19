@@ -48,6 +48,7 @@ Designed for the **Samsung Galaxy Fold 7** (Snapdragon 8 Elite, 12GB RAM) but wo
 ## Features
 
 - **100% Offline** — all inference runs locally via llama.cpp
+- **Image understanding (vision)** — attach a photo from your camera or gallery and ask the on-device model about it
 - **GGUF model support** — load any GGUF model from your device storage
 - **Built-in model downloader** — download popular models directly to your phone
 - **Streaming responses** — tokens appear in real time as they're generated
@@ -61,16 +62,39 @@ Designed for the **Samsung Galaxy Fold 7** (Snapdragon 8 Elite, 12GB RAM) but wo
 
 ---
 
+## Image Understanding (Vision)
+
+irai can understand images entirely on-device using [llama.rn's multimodal (mtmd) support](https://github.com/mybigday/llama.rn). This requires a **vision-capable model** paired with its **mmproj** (multimodal projector) file — both are GGUF files.
+
+### Setup
+
+1. Go to the **Models** tab → **Vision** section
+2. Tap **↓ Get SmolVLM 500M Instruct** to download a small vision model + projector pair (or **+ Import mmproj** to bring your own)
+3. Load the vision model like any other model (**Load** button in the models list)
+4. Back in the Vision section, tap **Enable** next to the mmproj file
+5. Go to the **Chat** tab — the 📷 button is now active
+
+### Using it
+
+1. Tap 📷 → **Take Photo** or **Choose from Gallery**
+2. Optionally type a question (e.g. "What's in this image?", "Read the text in this photo")
+3. Tap **[RUN]** — irai analyzes the image on-device and streams a response
+
+> Vision runs on the currently loaded model + mmproj pair. Multi-agent mode is text-only; image messages are always answered by the active single agent. Any GGUF vision model with a matching mmproj file works — look for "mmproj" GGUF files paired with vision-capable base models (e.g. LLaVA, SmolVLM, Qwen2-VL, MiniCPM-V) on Hugging Face.
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |
 |---|---|
 | Framework | React Native 0.75 |
-| LLM Runtime | llama.rn (llama.cpp bindings) |
+| LLM Runtime | llama.rn (llama.cpp bindings, incl. mtmd vision/audio) |
 | State Management | Zustand |
 | Navigation | React Navigation v6 (bottom tabs) |
 | File System | react-native-fs |
 | File Picker | react-native-document-picker |
+| Image Picker | react-native-image-picker (camera + gallery) |
 | UI Components | react-native-paper, react-native-gesture-handler |
 | Settings Sliders | @react-native-community/slider |
 
@@ -302,6 +326,8 @@ adb shell am start -n com.irai/.MainActivity
 | `READ_EXTERNAL_STORAGE` | Import GGUF model files |
 | `WRITE_EXTERNAL_STORAGE` | Save downloaded/imported models |
 | `INTERNET` | Download models from Hugging Face |
+| `CAMERA` | Take a photo to ask irai about |
+| `READ_MEDIA_IMAGES` | Pick a photo from your gallery (Android 13+) |
 
 ---
 
