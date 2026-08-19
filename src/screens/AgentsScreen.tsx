@@ -3,11 +3,11 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   Switch,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppStore } from '../store/useAppStore';
 import { AGENTS, MULTI_AGENT_PIPELINE, getAgent, Agent } from '../utils/agents';
 import { colors, spacing, fontSizes, borderRadius } from '../theme';
@@ -41,7 +41,7 @@ export const AgentsScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>Agents</Text>
       </View>

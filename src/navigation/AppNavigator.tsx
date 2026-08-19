@@ -1,7 +1,8 @@
 import React from 'react';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChatScreen } from '../screens/ChatScreen';
 import { AgentsScreen } from '../screens/AgentsScreen';
 import { MemoryScreen } from '../screens/MemoryScreen';
@@ -32,18 +33,24 @@ const TAB_ICONS: Record<string, string> = {
   Settings: '⚙',
 };
 
-export const AppNavigator: React.FC = () => (
-  <NavigationContainer theme={navTheme}>
+// Inner component so we can use hooks for safe area insets
+const TabBarNavigator: React.FC = () => {
+  const insets = useSafeAreaInsets();
+  // Tab bar height = 56px visible + system gesture/nav bar height
+  const tabBarHeight = 56 + insets.bottom;
+
+  return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.divider,
-          borderTopWidth: 1,
-          height: 60,
-          paddingBottom: 8,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          height: tabBarHeight,
+          paddingBottom: insets.bottom + 4,
           paddingTop: 6,
+          elevation: 0,         // remove Android shadow that causes overlap
         },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
@@ -67,5 +74,11 @@ export const AppNavigator: React.FC = () => (
       <Tab.Screen name="Models"   component={ModelsScreen} />
       <Tab.Screen name="Settings" component={SettingsScreen} />
     </Tab.Navigator>
+  );
+};
+
+export const AppNavigator: React.FC = () => (
+  <NavigationContainer theme={navTheme}>
+    <TabBarNavigator />
   </NavigationContainer>
 );

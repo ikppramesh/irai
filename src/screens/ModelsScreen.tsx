@@ -5,12 +5,12 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   Alert,
   ActivityIndicator,
   Modal,
   ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import DocumentPicker from 'react-native-document-picker';
 import RNFS from 'react-native-fs';
 import { initLlama } from 'llama.rn';
@@ -506,7 +506,7 @@ export const ModelsScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Models</Text>

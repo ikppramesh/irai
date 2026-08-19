@@ -1,31 +1,30 @@
 import { Platform } from 'react-native';
 
-// Claude-inspired warm, neutral dark palette with a clay/terracotta accent.
 export const colors = {
-  primary:        '#D97757',   // clay / terracotta accent
-  primaryDim:     '#C2694A',   // darker accent for pressed/secondary states
-  primaryDark:    '#3A3836',   // neutral border / divider tone
-  secondary:      '#7FA7D9',   // muted blue, used for multi-agent mode
-  background:     '#1B1A19',   // warm near-black
-  surface:        '#211F1E',
-  surfaceVariant: '#2A2826',
-  card:           '#242220',
-  cardBorder:     '#3A3836',
-  text:           '#F3F1EA',   // warm off-white
-  textSecondary:  '#B7B4AC',
-  textMuted:      '#7C7A74',
-  userBubble:     '#2E2C2A',
-  userBubbleText: '#F3F1EA',
+  primary:        '#7C4DFF',   // deep purple A400
+  primaryDim:     '#651FFF',   // deep purple A700
+  primaryDark:    '#2A2A45',   // purple-tinted border/divider
+  secondary:      '#00BCD4',   // cyan for multi-agent mode
+  background:     '#0D0D1A',   // deep dark with purple tint
+  surface:        '#131320',
+  surfaceVariant: '#1C1C30',
+  card:           '#181828',
+  cardBorder:     '#2A2A45',
+  text:           '#E8E8FF',   // cool off-white
+  textSecondary:  '#9090BB',
+  textMuted:      '#4A4A70',
+  userBubble:     '#1E1840',
+  userBubbleText: '#E8E8FF',
   aiBubble:       'transparent',
-  aiBubbleText:   '#F3F1EA',
-  inputBg:        '#242220',
-  inputBorder:    '#3A3836',
-  error:          '#E5484D',
-  success:        '#4CAF7D',
-  warning:        '#E8A33D',
-  divider:        '#33312F',
-  icon:           '#8C8A83',
-  iconActive:     '#D97757',
+  aiBubbleText:   '#E8E8FF',
+  inputBg:        '#181828',
+  inputBorder:    '#2A2A45',
+  error:          '#FF5252',
+  success:        '#69F0AE',
+  warning:        '#FFD740',
+  divider:        '#222240',
+  icon:           '#6060AA',
+  iconActive:     '#7C4DFF',
 };
 
 export const fonts = {
@@ -52,8 +51,8 @@ export const fontSizes = {
 
 export const borderRadius = {
   sm: 4,
-  md: 6,
-  lg: 8,
-  xl: 10,
+  md: 8,
+  lg: 12,
+  xl: 16,
   full: 999,
 };

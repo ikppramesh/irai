@@ -1,8 +1,9 @@
 import React, { useRef, useCallback, useEffect } from 'react';
 import {
   View, FlatList, StyleSheet, Text,
-  SafeAreaView, TouchableOpacity, Alert,
+  TouchableOpacity, Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppStore, Message } from '../store/useAppStore';
 import { MessageBubble } from '../components/MessageBubble';
 import { ChatInput, AttachedImage } from '../components/ChatInput';
@@ -402,7 +403,7 @@ export const ChatScreen: React.FC = () => {
   const lastIndex = visibleMessages.length - 1;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>irai</Text>
         {visibleMessages.length > 0 && (
