@@ -16,21 +16,20 @@ const navTheme = {
   colors: {
     ...DefaultTheme.colors,
     background: colors.background,
-    card: '#050505',
-    border: colors.primaryDark,
+    card: colors.surface,
+    border: colors.divider,
     text: colors.text,
     primary: colors.primary,
     notification: colors.primary,
   },
 };
 
-// Terminal-style ASCII tab icons
-const TAB_ICONS: Record<string, { active: string; inactive: string }> = {
-  Chat:     { active: '▸', inactive: '▹' },
-  Agents:   { active: '◈', inactive: '◇' },
-  Memory:   { active: '◉', inactive: '○' },
-  Models:   { active: '◆', inactive: '◇' },
-  Settings: { active: '⊞', inactive: '⊟' },
+const TAB_ICONS: Record<string, string> = {
+  Chat:     '✦',
+  Agents:   '◇',
+  Memory:   '◉',
+  Models:   '▢',
+  Settings: '⚙',
 };
 
 export const AppNavigator: React.FC = () => (
@@ -39,8 +38,8 @@ export const AppNavigator: React.FC = () => (
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#050505',
-          borderTopColor: colors.primaryDark,
+          backgroundColor: colors.surface,
+          borderTopColor: colors.divider,
           borderTopWidth: 1,
           height: 60,
           paddingBottom: 8,
@@ -49,23 +48,18 @@ export const AppNavigator: React.FC = () => (
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarLabelStyle: {
-          fontFamily: fonts.mono,
+          fontFamily: fonts.sans,
           fontSize: 10,
-          letterSpacing: 0.5,
-          fontWeight: '700',
+          fontWeight: '600',
         },
-        tabBarIcon: ({ focused }) => {
-          const icon = TAB_ICONS[route.name];
-          return (
-            <Text style={{
-              fontFamily: fonts.mono,
-              fontSize: focused ? 18 : 15,
-              color: focused ? colors.primary : colors.textMuted,
-            }}>
-              {focused ? icon?.active : icon?.inactive}
-            </Text>
-          );
-        },
+        tabBarIcon: ({ focused }) => (
+          <Text style={{
+            fontSize: focused ? 18 : 16,
+            color: focused ? colors.primary : colors.textMuted,
+          }}>
+            {TAB_ICONS[route.name]}
+          </Text>
+        ),
       })}>
       <Tab.Screen name="Chat"     component={ChatScreen} />
       <Tab.Screen name="Agents"   component={AgentsScreen} />

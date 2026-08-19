@@ -11,17 +11,16 @@ export const ModelBar: React.FC = () => {
   const agent = getAgent(activeAgentId);
 
   const agentColor = isMultiAgentMode ? colors.secondary : agent.color;
-  const agentLabel = isMultiAgentMode ? 'MULTI-AGENT' : agent.name.toUpperCase();
+  const agentLabel = isMultiAgentMode ? 'Multi-agent' : agent.name;
 
   return (
     <View style={styles.row}>
       {/* Agent indicator */}
       <TouchableOpacity
-        style={[styles.chip, { borderColor: agentColor + '66' }]}
+        style={styles.chip}
         onPress={() => navigation.navigate('Agents')}>
-        <Text style={[styles.chipLabel, { color: agentColor }]}>
-          {`[${agentLabel}]`}
-        </Text>
+        <View style={[styles.dot, { backgroundColor: agentColor }]} />
+        <Text style={styles.chipLabel} numberOfLines={1}>{agentLabel}</Text>
       </TouchableOpacity>
 
       {/* Model indicator */}
@@ -31,12 +30,10 @@ export const ModelBar: React.FC = () => {
         {isModelLoading ? (
           <ActivityIndicator size="small" color={colors.primary} />
         ) : (
-          <Text style={[styles.modelDot, { color: currentModel ? colors.success : colors.error }]}>
-            {currentModel ? '●' : '○'}
-          </Text>
+          <View style={[styles.dot, { backgroundColor: currentModel ? colors.success : colors.textMuted }]} />
         )}
         <Text style={styles.modelName} numberOfLines={1}>
-          {isModelLoading ? 'LOADING...' : currentModel ? currentModel.name.toUpperCase() : 'NO MODEL'}
+          {isModelLoading ? 'Loading…' : currentModel ? currentModel.name : 'No model loaded'}
         </Text>
       </TouchableOpacity>
     </View>
@@ -47,40 +44,39 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     paddingHorizontal: spacing.md,
-    paddingVertical: 6,
+    paddingVertical: spacing.sm,
     gap: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.primaryDark,
+    borderBottomColor: colors.divider,
   },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderRadius: 2,
+    backgroundColor: colors.surfaceVariant,
+    borderRadius: 999,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 5,
-    gap: 5,
+    paddingVertical: 6,
+    gap: 6,
   },
   modelChip: {
     flex: 1,
-    borderColor: colors.primaryDark,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   chipLabel: {
-    fontFamily: fonts.mono,
+    fontFamily: fonts.sans,
     fontSize: fontSizes.xs,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  modelDot: {
-    fontFamily: fonts.mono,
-    fontSize: 12,
+    fontWeight: '600',
+    color: colors.text,
   },
   modelName: {
     flex: 1,
-    fontFamily: fonts.mono,
+    fontFamily: fonts.sans,
     fontSize: fontSizes.xs,
+    fontWeight: '600',
     color: colors.text,
-    letterSpacing: 0.3,
   },
 });

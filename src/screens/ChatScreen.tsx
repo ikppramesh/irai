@@ -403,12 +403,11 @@ export const ChatScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Terminal title bar */}
       <View style={styles.header}>
-        <Text style={styles.title}>{'╔══ IRAI TERMINAL ══╗'}</Text>
+        <Text style={styles.title}>irai</Text>
         {visibleMessages.length > 0 && (
           <TouchableOpacity onPress={handleClear} style={styles.clearBtn}>
-            <Text style={styles.clearText}>{'[CLR]'}</Text>
+            <Text style={styles.clearText}>New chat</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -429,20 +428,14 @@ export const ChatScreen: React.FC = () => {
         )}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyAscii}>
-              {'  _  ____   _    ___ \n' +
-               ' (_)|  _ \\ / \\  |_ _|\n' +
-               ' | || |_) / _ \\  | | \n' +
-               ' | ||  _ < ___ \\ | | \n' +
-               ' |_||_| \\_\\   \\_\\___|'}
-            </Text>
-            <Text style={styles.emptySubtitle}>{'// offline AI terminal'}</Text>
+            <Text style={styles.emptyGlyph}>{'✦'}</Text>
+            <Text style={styles.emptyTitle}>How can I help you today?</Text>
             <Text style={styles.emptyHint}>
               {llamaContext
                 ? isMultiAgentMode
-                  ? '>> MULTI-AGENT MODE ACTIVE\n>> agents share full conversation context'
-                  : '>> model loaded. ready for input.'
-                : '>> no model loaded.\n>> go to MODELS tab to load a model.'}
+                  ? 'Multi-agent mode is active — agents share the full conversation context.'
+                  : 'Your model is loaded and ready. Ask anything, or attach a photo.'
+                : 'Load a model from the Models tab to get started.'}
             </Text>
           </View>
         }
@@ -466,42 +459,40 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.xs,
-    borderBottomWidth: 1, borderBottomColor: colors.primaryDark,
+    paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.xs,
   },
   title: {
-    fontFamily: fonts.mono,
-    fontSize: fontSizes.sm,
-    fontWeight: '700',
-    color: colors.primary,
-    letterSpacing: 0.5,
+    fontFamily: fonts.sansMedium,
+    fontSize: fontSizes.lg,
+    fontWeight: '600',
+    color: colors.text,
   },
-  clearBtn: { padding: spacing.sm },
-  clearText: { fontFamily: fonts.mono, color: colors.error, fontSize: fontSizes.xs, fontWeight: '700' },
+  clearBtn: { paddingHorizontal: spacing.sm, paddingVertical: 4 },
+  clearText: { fontFamily: fonts.sans, color: colors.primary, fontSize: fontSizes.sm, fontWeight: '600' },
   list: { paddingVertical: spacing.sm },
   emptyList: { flex: 1 },
   emptyContainer: {
     flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl,
   },
-  emptyAscii: {
-    fontFamily: fonts.mono,
-    fontSize: 13,
+  emptyGlyph: {
+    fontSize: 32,
     color: colors.primary,
-    lineHeight: 20,
-    marginBottom: spacing.lg,
-    textAlign: 'center',
-  },
-  emptySubtitle: {
-    fontFamily: fonts.mono,
-    fontSize: fontSizes.sm,
-    color: colors.textSecondary,
     marginBottom: spacing.md,
   },
+  emptyTitle: {
+    fontFamily: fonts.sansMedium,
+    fontSize: fontSizes.xl,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
   emptyHint: {
-    fontFamily: fonts.mono,
-    fontSize: fontSizes.xs,
+    fontFamily: fonts.sans,
+    fontSize: fontSizes.sm,
     color: colors.textMuted,
     textAlign: 'center',
     lineHeight: 20,
+    maxWidth: 280,
   },
 });

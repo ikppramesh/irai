@@ -11,7 +11,7 @@ import {
   ActionSheetIOS,
 } from 'react-native';
 import { launchCamera, launchImageLibrary, Asset } from 'react-native-image-picker';
-import { colors, spacing, fontSizes, fonts } from '../theme';
+import { colors, spacing, fontSizes, fonts, borderRadius } from '../theme';
 
 export interface AttachedImage {
   uri: string;
@@ -96,14 +96,6 @@ export const ChatInput: React.FC<Props> = ({ onSend, onStop, isGenerating, disab
 
   return (
     <View style={styles.container}>
-      {/* Terminal prompt row */}
-      <View style={styles.promptRow}>
-        <Text style={styles.promptLabel}>
-          {disabled ? 'NO_MODEL' : isGenerating ? 'GENERATING' : 'INPUT'}
-        </Text>
-        <Text style={styles.promptSeparator}> ══ </Text>
-      </View>
-
       {image && (
         <View style={styles.imagePreviewRow}>
           <Image source={{ uri: image.uri }} style={styles.imagePreview} />
@@ -120,13 +112,12 @@ export const ChatInput: React.FC<Props> = ({ onSend, onStop, isGenerating, disab
           disabled={disabled || isGenerating}>
           <Text style={styles.attachBtnText}>{'📷'}</Text>
         </TouchableOpacity>
-        <Text style={styles.promptSymbol}>{'>'}</Text>
         <TextInput
           ref={inputRef}
           style={styles.input}
           value={text}
           onChangeText={setText}
-          placeholder={disabled ? 'load a model first...' : image ? 'describe what to look for...' : 'enter command...'}
+          placeholder={disabled ? 'Load a model to get started' : image ? 'Ask about this image…' : 'Message irai…'}
           placeholderTextColor={colors.textMuted}
           multiline
           maxLength={4000}
@@ -137,17 +128,15 @@ export const ChatInput: React.FC<Props> = ({ onSend, onStop, isGenerating, disab
           selectionColor={colors.primary}
         />
         {isGenerating ? (
-          <TouchableOpacity style={[styles.actionBtn, styles.stopBtn]} onPress={onStop}>
-            <Text style={styles.actionBtnText}>{'[STOP]'}</Text>
+          <TouchableOpacity style={[styles.sendBtn, styles.stopBtn]} onPress={onStop}>
+            <View style={styles.stopIcon} />
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
-            style={[styles.actionBtn, !canSend && styles.actionBtnDisabled]}
+            style={[styles.sendBtn, !canSend && styles.sendBtnDisabled]}
             onPress={handleSend}
             disabled={!canSend}>
-            <Text style={[styles.actionBtnText, !canSend && styles.actionBtnTextDisabled]}>
-              {'[RUN]'}
-            </Text>
+            <Text style={[styles.sendBtnText, !canSend && styles.sendBtnTextDisabled]}>{'↑'}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -161,24 +150,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingTop: spacing.xs,
     paddingBottom: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.primaryDark,
-  },
-  promptRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  promptLabel: {
-    fontFamily: fonts.mono,
-    fontSize: 10,
-    color: colors.textMuted,
-    letterSpacing: 1,
-  },
-  promptSeparator: {
-    fontFamily: fonts.mono,
-    fontSize: 10,
-    color: colors.primaryDark,
   },
   imagePreviewRow: {
     flexDirection: 'row',
@@ -188,81 +159,80 @@ const styles = StyleSheet.create({
   imagePreview: {
     width: 56,
     height: 56,
-    borderRadius: 4,
+    borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: colors.primaryDim,
+    borderColor: colors.cardBorder,
   },
   imageRemoveBtn: {
     marginLeft: spacing.sm,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.error,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.surfaceVariant,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  imageRemoveText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  imageRemoveText: { color: colors.textSecondary, fontSize: 11, fontWeight: '700' },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     backgroundColor: colors.inputBg,
     borderWidth: 1,
     borderColor: colors.inputBorder,
-    borderRadius: 2,
-    paddingLeft: spacing.sm,
+    borderRadius: borderRadius.xl + 10,
+    paddingLeft: spacing.xs,
     paddingRight: spacing.xs,
     paddingVertical: spacing.xs,
   },
   attachBtn: {
-    paddingHorizontal: 6,
-    paddingBottom: Platform.OS === 'android' ? 8 : 6,
-    marginRight: spacing.xs,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 2,
   },
-  attachBtnDim: { opacity: 0.4 },
+  attachBtnDim: { opacity: 0.35 },
   attachBtnText: { fontSize: fontSizes.lg },
-  promptSymbol: {
-    fontFamily: fonts.mono,
-    fontSize: fontSizes.lg,
-    color: colors.primary,
-    fontWeight: 'bold',
-    paddingBottom: Platform.OS === 'android' ? 8 : 6,
-    marginRight: spacing.xs,
-  },
   input: {
     flex: 1,
-    fontFamily: fonts.mono,
+    fontFamily: fonts.sans,
     color: colors.text,
     fontSize: fontSizes.md,
     maxHeight: 120,
     paddingVertical: spacing.sm,
+    paddingHorizontal: 4,
     lineHeight: 20,
   },
-  actionBtn: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    borderRadius: 2,
-    marginLeft: spacing.xs,
-    marginBottom: 4,
+  sendBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 60,
+    marginLeft: spacing.xs,
+    marginBottom: 2,
   },
-  actionBtnDisabled: {
-    borderColor: colors.primaryDark,
+  sendBtnDisabled: {
+    backgroundColor: colors.surfaceVariant,
   },
   stopBtn: {
-    borderColor: colors.error,
+    backgroundColor: colors.primary,
   },
-  actionBtnText: {
-    fontFamily: fonts.mono,
-    fontSize: fontSizes.xs,
-    fontWeight: '700',
-    color: colors.primary,
-    letterSpacing: 0.5,
+  stopIcon: {
+    width: 11,
+    height: 11,
+    borderRadius: 2,
+    backgroundColor: colors.background,
   },
-  actionBtnTextDisabled: {
+  sendBtnText: {
+    fontFamily: fonts.sans,
+    fontSize: fontSizes.lg,
+    fontWeight: '800',
+    color: colors.background,
+  },
+  sendBtnTextDisabled: {
     color: colors.textMuted,
   },
 });

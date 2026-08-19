@@ -1,34 +1,36 @@
 import { Platform } from 'react-native';
 
+// Claude-inspired warm, neutral dark palette with a clay/terracotta accent.
 export const colors = {
-  primary:        '#00E676',   // phosphor green
-  primaryDim:     '#00843D',   // medium green
-  primaryDark:    '#003D1E',   // dark green border
-  secondary:      '#00FFFF',   // cyan accent
-  background:     '#000000',   // pure black
-  surface:        '#080808',
-  surfaceVariant: '#0D0D0D',
-  card:           '#0A0A0A',
-  cardBorder:     '#002B12',
-  text:           '#00E676',   // main terminal green
-  textSecondary:  '#00843D',
-  textMuted:      '#004D25',
-  userBubble:     '#001A0A',
-  userBubbleText: '#CCFFCC',
-  aiBubble:       '#000A04',
-  aiBubbleText:   '#00E676',
-  inputBg:        '#000A04',
-  inputBorder:    '#00843D',
-  error:          '#FF3333',
-  success:        '#00E676',
-  warning:        '#FFB300',
-  divider:        '#002B12',
-  icon:           '#00843D',
-  iconActive:     '#00E676',
+  primary:        '#D97757',   // clay / terracotta accent
+  primaryDim:     '#C2694A',   // darker accent for pressed/secondary states
+  primaryDark:    '#3A3836',   // neutral border / divider tone
+  secondary:      '#7FA7D9',   // muted blue, used for multi-agent mode
+  background:     '#1B1A19',   // warm near-black
+  surface:        '#211F1E',
+  surfaceVariant: '#2A2826',
+  card:           '#242220',
+  cardBorder:     '#3A3836',
+  text:           '#F3F1EA',   // warm off-white
+  textSecondary:  '#B7B4AC',
+  textMuted:      '#7C7A74',
+  userBubble:     '#2E2C2A',
+  userBubbleText: '#F3F1EA',
+  aiBubble:       'transparent',
+  aiBubbleText:   '#F3F1EA',
+  inputBg:        '#242220',
+  inputBorder:    '#3A3836',
+  error:          '#E5484D',
+  success:        '#4CAF7D',
+  warning:        '#E8A33D',
+  divider:        '#33312F',
+  icon:           '#8C8A83',
+  iconActive:     '#D97757',
 };
 
 export const fonts = {
-  mono: Platform.select({ ios: 'Courier New', android: 'monospace' }) ?? 'monospace',
+  sans: Platform.select({ ios: 'System', android: 'sans-serif' }) ?? 'System',
+  sansMedium: Platform.select({ ios: 'System', android: 'sans-serif-medium' }) ?? 'System',
 };
 
 export const spacing = {
