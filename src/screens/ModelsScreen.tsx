@@ -9,6 +9,9 @@ import {
   ActivityIndicator,
   Modal,
   ScrollView,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DocumentPicker from 'react-native-document-picker';
@@ -141,6 +144,8 @@ export const ModelsScreen: React.FC = () => {
   const [downloads, setDownloads] = useState<Record<string, DownloadState>>({});
   const [visionDownloading, setVisionDownloading] = useState(false);
   const [visionDownloadProgress, setVisionDownloadProgress] = useState(0);
+  const [showCustomUrlModal, setShowCustomUrlModal] = useState(false);
+  const [customUrl, setCustomUrl] = useState('');
 
   const loadModelList = useCallback(async () => {
     setRefreshing(true);
@@ -261,6 +266,88 @@ export const ModelsScreen: React.FC = () => {
       delete updated[model.id];
       return updated;
     });
+  };
+
+  // ─── Custom URL download ────────────────────────────────────────────────────
+  const handleCustomUrlDownload = async () => {
+    const url = customUrl.trim();
+
+    if (!url.match(/^https?:\/\/.+/i)) {
+      Alert.alert('Invalid URL', 'Please enter a valid http:// or https:// URL.');
+      return;
+    }
+    const cleanPath = url.split('?')[0].split('#')[0];
+    if (!cleanPath.endsWith('.gguf') && !cleanPath.endsWith('.bin')) {
+      Alert.alert('Invalid File Type', 'URL must point to a .gguf or .bin model file.');
+      return;
+    }
+
+    const filename = cleanPath.split('/').pop() ?? `custom-${Date.now()}.gguf`;
+    const destPath = `${MODELS_DIR}/${filename}`;
+
+    await ensureModelsDir();
+    const exists = await RNFS.exists(destPath);
+    if (exists) {
+      Alert.alert('Already Downloaded', `"${filename}" is already in your models list.`);
+      setShowCustomUrlModal(false);
+      setCustomUrl('');
+      return;
+    }
+
+    const downloadId = `custom-${Date.now()}`;
+    setDownloads((prev) => ({
+      ...prev,
+      [downloadId]: { modelId: downloadId, progress: 0, jobId: null },
+    }));
+
+    setShowCustomUrlModal(false);
+    setCustomUrl('');
+
+    try {
+      const { jobId, promise } = RNFS.downloadFile({
+        fromUrl: url,
+        toFile: destPath,
+        progress: (res) => {
+          const pct = Math.floor((res.bytesWritten / res.contentLength) * 100);
+          setDownloads((prev) => ({
+            ...prev,
+            [downloadId]: { ...prev[downloadId], progress: pct, jobId },
+          }));
+        },
+        progressDivider: 1,
+        background: false,
+      });
+
+      setDownloads((prev) => ({
+        ...prev,
+        [downloadId]: { ...prev[downloadId], jobId },
+      }));
+
+      const result = await promise;
+
+      if (result.statusCode === 200) {
+        setDownloads((prev) => {
+          const updated = { ...prev };
+          delete updated[downloadId];
+          return updated;
+        });
+        await loadModelList();
+        Alert.alert('Download Complete', `"${filename}" is ready to use!`);
+      } else {
+        throw new Error(`HTTP ${result.statusCode}`);
+      }
+    } catch (e: any) {
+      const partialExists = await RNFS.exists(destPath);
+      if (partialExists) await RNFS.unlink(destPath);
+      setDownloads((prev) => {
+        const updated = { ...prev };
+        delete updated[downloadId];
+        return updated;
+      });
+      if (!e?.message?.includes('cancel')) {
+        Alert.alert('Download Failed', e.message || 'Could not download the model. Check the URL and try again.');
+      }
+    }
   };
 
   // ─── Load model into memory ─────────────────────────────────────────────────
@@ -643,6 +730,59 @@ export const ModelsScreen: React.FC = () => {
         contentContainerStyle={models.length === 0 ? styles.emptyList : styles.list}
       />
 
+      {/* Custom URL Modal */}
+      <Modal
+        visible={showCustomUrlModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => {
+          setShowCustomUrlModal(false);
+          setCustomUrl('');
+        }}>
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Custom URL</Text>
+            <TouchableOpacity
+              onPress={() => {
+                setShowCustomUrlModal(false);
+                setCustomUrl('');
+              }}
+              style={styles.modalClose}>
+              <Text style={styles.modalCloseText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ flex: 1 }}>
+            <View style={styles.customUrlBody}>
+              <Text style={styles.customUrlLabel}>DIRECT DOWNLOAD URL</Text>
+              <TextInput
+                style={styles.customUrlInput}
+                value={customUrl}
+                onChangeText={setCustomUrl}
+                placeholder="https://huggingface.co/.../model.gguf"
+                placeholderTextColor={colors.textMuted}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+                returnKeyType="done"
+                onSubmitEditing={handleCustomUrlDownload}
+                autoFocus
+              />
+              <Text style={styles.customUrlHint}>
+                Paste any direct link to a .gguf or .bin file. HuggingFace "resolve/main" URLs work perfectly.
+              </Text>
+              <TouchableOpacity
+                style={[styles.customUrlBtn, !customUrl.trim() && styles.customUrlBtnDisabled]}
+                onPress={handleCustomUrlDownload}
+                disabled={!customUrl.trim()}>
+                <Text style={styles.customUrlBtnText}>↓ Start Download</Text>
+              </TouchableOpacity>
+            </View>
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      </Modal>
+
       {/* Download Modal */}
       <Modal
         visible={showDownloadModal}
@@ -661,6 +801,47 @@ export const ModelsScreen: React.FC = () => {
           </Text>
           <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
             {DOWNLOADABLE_MODELS.map(renderDownloadRow)}
+
+            {/* Active custom downloads */}
+            {Object.entries(downloads)
+              .filter(([id]) => id.startsWith('custom-'))
+              .map(([id, dl]) => (
+                <View key={id} style={styles.dlRow}>
+                  <View style={styles.dlInfo}>
+                    <Text style={styles.dlName}>Custom Download</Text>
+                    <View style={styles.progressBarBg}>
+                      <View style={[styles.progressBarFill, { width: `${dl.progress}%` as any }]} />
+                      <Text style={styles.progressText}>{dl.progress}%</Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.dlBtn, styles.cancelBtn]}
+                    onPress={() => {
+                      if (dl.jobId != null) RNFS.stopDownload(dl.jobId);
+                      setDownloads((prev) => {
+                        const updated = { ...prev };
+                        delete updated[id];
+                        return updated;
+                      });
+                    }}>
+                    <Text style={styles.dlBtnText}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+
+            {/* Custom URL footer */}
+            <View style={styles.customUrlFooter}>
+              <View style={styles.customUrlDivider} />
+              <Text style={styles.customUrlFooterLabel}>NOT IN THE LIST?</Text>
+              <TouchableOpacity
+                style={styles.customUrlFooterBtn}
+                onPress={() => {
+                  setShowDownloadModal(false);
+                  setTimeout(() => setShowCustomUrlModal(true), 350);
+                }}>
+                <Text style={styles.customUrlFooterBtnText}>+ Paste Custom URL</Text>
+              </TouchableOpacity>
+            </View>
             <View style={{ height: 32 }} />
           </ScrollView>
         </SafeAreaView>
@@ -870,4 +1051,83 @@ const styles = StyleSheet.create({
   downloadBtn: { backgroundColor: colors.primary },
   cancelBtn: { backgroundColor: colors.error },
   dlBtnText: { color: '#fff', fontWeight: '700', fontSize: fontSizes.xs },
+
+  // Custom URL modal
+  customUrlBody: {
+    padding: spacing.md,
+    flex: 1,
+  },
+  customUrlLabel: {
+    fontSize: fontSizes.xs,
+    fontWeight: '700',
+    color: colors.textMuted,
+    letterSpacing: 1,
+    marginBottom: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  customUrlInput: {
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    color: colors.text,
+    fontSize: fontSizes.md,
+    padding: spacing.md,
+    minHeight: 56,
+    textAlignVertical: 'center',
+  },
+  customUrlHint: {
+    fontSize: fontSizes.xs,
+    color: colors.textSecondary,
+    marginTop: spacing.sm,
+    marginBottom: spacing.lg,
+    lineHeight: 18,
+  },
+  customUrlBtn: {
+    backgroundColor: colors.primary,
+    padding: spacing.md,
+    borderRadius: borderRadius.full,
+    alignItems: 'center',
+  },
+  customUrlBtnDisabled: {
+    opacity: 0.4,
+  },
+  customUrlBtnText: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: fontSizes.md,
+  },
+
+  // Custom URL footer inside Download Modal
+  customUrlFooter: {
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+    alignItems: 'center',
+  },
+  customUrlDivider: {
+    height: 1,
+    backgroundColor: colors.divider,
+    width: '100%',
+    marginBottom: spacing.md,
+  },
+  customUrlFooterLabel: {
+    fontSize: fontSizes.xs,
+    fontWeight: '700',
+    color: colors.textMuted,
+    letterSpacing: 1,
+    marginBottom: spacing.sm,
+  },
+  customUrlFooterBtn: {
+    backgroundColor: colors.surfaceVariant,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+  },
+  customUrlFooterBtnText: {
+    color: colors.primary,
+    fontWeight: '700',
+    fontSize: fontSizes.sm,
+  },
 });
