@@ -9,8 +9,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/ikppramesh/irai/releases/download/v1.1.0/irai-v1.1.0-android.apk">
-    <img src="https://img.shields.io/badge/Download-APK%20v1.1.0-FFB300?style=for-the-badge&logo=android" alt="Download APK" />
+  <a href="https://github.com/ikppramesh/irai/releases/download/v1.1.1/irai-v1.1.1-android.apk">
+    <img src="https://img.shields.io/badge/Download-APK%20v1.1.1-FFB300?style=for-the-badge&logo=android" alt="Download APK" />
   </a>
   &nbsp;
   <img src="https://img.shields.io/badge/Android-12%2B-green?style=for-the-badge&logo=android" alt="Android 12+" />
@@ -22,7 +22,14 @@
 
 ## Changelog
 
-### v1.1.0 (latest)
+### v1.1.1 (latest)
+
+**Fix: Hidden model tags**
+- `<think>`, `<reasoning>`, and any other XML-like tags models emit internally are now stripped from all responses — only the clean answer is shown
+
+---
+
+### v1.1.0
 
 **IRx-1 Model**
 - Added IRx-1 (fine-tuned Qwen3.5-2B) to the built-in download list — fast, private, runs fully offline
@@ -83,7 +90,7 @@ Designed for the **Samsung Galaxy Fold 7** (Snapdragon 8 Elite, 12GB RAM) but wo
 
 > Direct APK — install without building from source.
 
-**[⬇ Download irai-v1.1.0-android.apk](https://github.com/ikppramesh/irai/releases/download/v1.1.0/irai-v1.1.0-android.apk)** (128 MB)
+**[⬇ Download irai-v1.1.1-android.apk](https://github.com/ikppramesh/irai/releases/download/v1.1.1/irai-v1.1.1-android.apk)** (128 MB)
 
 ### Installation steps
 
