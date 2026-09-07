@@ -97,6 +97,15 @@ const DOWNLOADABLE_MODELS = [
     filename: 'Mistral-7B-Instruct-v0.3-Q4_K_M.gguf',
     url: 'https://huggingface.co/bartowski/Mistral-7B-Instruct-v0.3-GGUF/resolve/main/Mistral-7B-Instruct-v0.3-Q4_K_M.gguf',
   },
+  {
+    id: 'irx-1',
+    name: 'IRx-1',
+    description: 'ikppramesh · Fine-tuned Qwen3.5-2B, fast & private',
+    size: '1.2 GB',
+    tag: 'Custom',
+    filename: 'irx-1-Q4_K_M.gguf',
+    url: 'https://huggingface.co/ikppramesh/irx-1-GGUF/resolve/main/irx-1-Q4_K_M.gguf',
+  },
 ];
 
 interface DownloadState {
