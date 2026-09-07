@@ -1,7 +1,7 @@
 import React, { useRef, useCallback, useEffect } from 'react';
 import {
   View, FlatList, StyleSheet, Text,
-  TouchableOpacity, Alert,
+  TouchableOpacity, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppStore, Message } from '../store/useAppStore';
@@ -30,11 +30,19 @@ const stripModelTags = (text: string): string => {
 
 // ── Prompt builder ─────────────────────────────────────────────────────────────
 
+const getTodayPrefix = (): string => {
+  const now = new Date();
+  const day = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  return `Today is ${day}, ${time}.`;
+};
+
 const buildChatMLPrompt = (
   history: Array<{ role: string; content: string }>,
   systemPrompt: string,
 ): string => {
-  let p = `<|im_start|>system\n${systemPrompt}<|im_end|>\n`;
+  const sysWithDate = `${getTodayPrefix()}\n${systemPrompt}`;
+  let p = `<|im_start|>system\n${sysWithDate}<|im_end|>\n`;
   for (const m of history) {
     if (m.role === 'user') {
       p += `<|im_start|>user\n${m.content}<|im_end|>\n<|im_start|>assistant\n`;
@@ -213,7 +221,7 @@ export const ChatScreen: React.FC = () => {
       .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
 
     const oaiMessages = [
-      { role: 'system', content: systemPrompt },
+      { role: 'system', content: `${getTodayPrefix()}\n${systemPrompt}` },
       ...priorTurns,
       {
         role: 'user',
@@ -427,43 +435,49 @@ export const ChatScreen: React.FC = () => {
 
       <ModelBar />
 
-      <FlatList
-        ref={flatListRef}
-        data={visibleMessages}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item, index }) => (
-          <MessageBubble
-            message={item}
-            isStreaming={
-              isGenerating && index === lastIndex && item.role === 'assistant'
-            }
-          />
-        )}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyGlyph}>{'✦'}</Text>
-            <Text style={styles.emptyTitle}>How can I help you today?</Text>
-            <Text style={styles.emptyHint}>
-              {llamaContext
-                ? isMultiAgentMode
-                  ? 'Multi-agent mode is active — agents share the full conversation context.'
-                  : 'Your model is loaded and ready. Ask anything, or attach a photo.'
-                : 'Load a model from the Models tab to get started.'}
-            </Text>
-          </View>
-        }
-        contentContainerStyle={visibleMessages.length === 0 ? styles.emptyList : styles.list}
-        onContentSizeChange={scrollToBottom}
-        showsVerticalScrollIndicator={false}
-      />
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+      >
+        <FlatList
+          ref={flatListRef}
+          data={visibleMessages}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item, index }) => (
+            <MessageBubble
+              message={item}
+              isStreaming={
+                isGenerating && index === lastIndex && item.role === 'assistant'
+              }
+            />
+          )}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyGlyph}>{'✦'}</Text>
+              <Text style={styles.emptyTitle}>How can I help you today?</Text>
+              <Text style={styles.emptyHint}>
+                {llamaContext
+                  ? isMultiAgentMode
+                    ? 'Multi-agent mode is active — agents share the full conversation context.'
+                    : 'Your model is loaded and ready. Ask anything, or attach a photo.'
+                  : 'Load a model from the Models tab to get started.'}
+              </Text>
+            </View>
+          }
+          contentContainerStyle={visibleMessages.length === 0 ? styles.emptyList : styles.list}
+          onContentSizeChange={scrollToBottom}
+          showsVerticalScrollIndicator={false}
+        />
 
-      <ChatInput
-        onSend={handleSend}
-        onStop={handleStop}
-        isGenerating={isGenerating}
-        disabled={!llamaContext}
-        visionEnabled={isVisionEnabled}
-      />
+        <ChatInput
+          onSend={handleSend}
+          onStop={handleStop}
+          isGenerating={isGenerating}
+          disabled={!llamaContext}
+          visionEnabled={isVisionEnabled}
+        />
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
