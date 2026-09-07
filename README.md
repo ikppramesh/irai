@@ -9,8 +9,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/ikppramesh/irai/raw/main/releases/irai-v1.0.0-android.apk">
-    <img src="https://img.shields.io/badge/Download-APK%20v1.0.0-7C4DFF?style=for-the-badge&logo=android" alt="Download APK" />
+  <a href="https://github.com/ikppramesh/irai/releases/download/v1.1.0/irai-v1.1.0-android.apk">
+    <img src="https://img.shields.io/badge/Download-APK%20v1.1.0-FFB300?style=for-the-badge&logo=android" alt="Download APK" />
   </a>
   &nbsp;
   <img src="https://img.shields.io/badge/Android-12%2B-green?style=for-the-badge&logo=android" alt="Android 12+" />
@@ -22,7 +22,21 @@
 
 ## Changelog
 
-### v1.0.0 (latest)
+### v1.1.0 (latest)
+
+**IRx-1 Model**
+- Added IRx-1 (fine-tuned Qwen3.5-2B) to the built-in download list — fast, private, runs fully offline
+
+**Custom URL Download**
+- Paste any direct HuggingFace `.gguf` link inside the app to download any model directly to your device
+- Progress tracking with cancel support
+
+**App Icon**
+- Logo now fills the icon properly — no more tiny text on a black square
+
+---
+
+### v1.0.0
 
 **Batman Theme**
 - Satin black background (`#0F0F0F`) with Batman gold (`#FFB300`) accent
@@ -69,7 +83,7 @@ Designed for the **Samsung Galaxy Fold 7** (Snapdragon 8 Elite, 12GB RAM) but wo
 
 > Direct APK — install without building from source.
 
-**[⬇ Download irai-v1.0.0-android.apk](https://github.com/ikppramesh/irai/raw/main/releases/irai-v1.0.0-android.apk)** (123 MB)
+**[⬇ Download irai-v1.1.0-android.apk](https://github.com/ikppramesh/irai/releases/download/v1.1.0/irai-v1.1.0-android.apk)** (128 MB)
 
 ### Installation steps
 
