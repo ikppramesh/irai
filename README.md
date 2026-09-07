@@ -24,40 +24,41 @@
 
 ### v1.1.2 (latest)
 
-**Fix: Keyboard covers input on Android 15**
-- Chat input now stays above the keyboard when typing
+**Keyboard fix (Android 15 / edge-to-edge)**
+- Chat input and messages now scroll above the keyboard when typing — no more input hidden behind the keyboard on Android 15 devices
 
-**Fix: Wrong date in responses**
-- Today's real date and time is injected into every prompt — model always knows the current date
+**Live date & time awareness**
+- Today's real date and time is automatically injected into every system prompt at inference time — the model always knows the current date when asked
 
 ---
 
 ### v1.1.1
 
-**Fix: Hidden model tags**
-- `<think>`, `<reasoning>`, and any other XML-like tags models emit internally are now stripped from all responses — only the clean answer is shown
+**Clean model output**
+- `<think>`, `<reasoning>`, and any other internal XML-like tags that reasoning models emit are now stripped before display — only the final clean answer is shown, both during streaming and after completion
 
 ---
 
 ### v1.1.0
 
-**IRx-1 Model**
-- Added IRx-1 (fine-tuned Qwen3.5-2B) to the built-in download list — fast, private, runs fully offline
+**IRx-1 model**
+- Added [IRx-1](https://huggingface.co/ikppramesh/irx-1-GGUF) — a custom fine-tuned Qwen3.5-2B — to the built-in download list. Fast, private, runs fully offline
 
-**Custom URL Download**
-- Paste any direct HuggingFace `.gguf` link inside the app to download any model directly to your device
-- Progress tracking with cancel support
+**Custom URL download**
+- Paste any direct HuggingFace `.gguf` or `.bin` URL in the app to download any model directly to your device without leaving the app
+- Real-time download progress with cancel support
+- Accessible via **Models → ↓ Download → + Paste Custom URL**
 
-**App Icon**
-- Logo now fills the icon properly — no more tiny text on a black square
+**App icon**
+- Logo now fills the icon properly across all Android screen densities — no more tiny text lost in a black square
 
 ---
 
 ### v1.0.0
 
-**Batman Theme**
-- Satin black background (`#0F0F0F`) with Batman gold (`#FFB300`) accent
-- Deep charcoal surface layers for depth
+**Batman theme**
+- Satin black background (`#0F0F0F`) with gold (`#FFB300`) accent throughout
+- Deep charcoal surface layers for visual depth
 
 **Markdown Code Blocks**
 - AI responses now render fenced code blocks (` ```lang `) as styled blocks — dark background, language label, monospace font, horizontal scroll for long lines
