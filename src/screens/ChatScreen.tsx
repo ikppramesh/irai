@@ -16,6 +16,18 @@ import {
   learnFromExchange,
 } from '../utils/memory';
 
+// ── Strip model reasoning/control tags from output ─────────────────────────────
+// Removes <think>…</think> and any other XML-like tags models emit internally.
+const stripModelTags = (text: string): string => {
+  // Remove complete <tag>…</tag> blocks (e.g. <think>…</think>)
+  let out = text.replace(/<([a-zA-Z][a-zA-Z0-9_-]*)>[\s\S]*?<\/\1>/g, '');
+  // While streaming the closing tag may not have arrived yet — hide from opening tag onwards
+  out = out.replace(/<[a-zA-Z][a-zA-Z0-9_-]*>[\s\S]*$/, '');
+  // Remove any stray standalone open/close tags
+  out = out.replace(/<\/?[a-zA-Z][a-zA-Z0-9_-]*>/g, '');
+  return out.trim();
+};
+
 // ── Prompt builder ─────────────────────────────────────────────────────────────
 
 const buildChatMLPrompt = (
@@ -167,12 +179,12 @@ export const ChatScreen: React.FC = () => {
         (data: { token: string }) => {
           full += data.token;
           tokenCount++;
-          updateLastAssistantMessage(full);
+          updateLastAssistantMessage(stripModelTags(full));
           scrollToBottom();
         },
       );
       const tps = tokenCount / ((Date.now() - startMs) / 1000);
-      updateLastAssistantMessage(full, { tokens: tokenCount, tokensPerSec: tps });
+      updateLastAssistantMessage(stripModelTags(full), { tokens: tokenCount, tokensPerSec: tps });
     } catch (e: any) {
       if (!e?.message?.includes('abort')) updateLastAssistantMessage('[Error generating response]');
     }
@@ -239,12 +251,12 @@ export const ChatScreen: React.FC = () => {
         (data: { token: string }) => {
           full += data.token;
           tokenCount++;
-          updateLastAssistantMessage(full);
+          updateLastAssistantMessage(stripModelTags(full));
           scrollToBottom();
         },
       );
       const tps = tokenCount / ((Date.now() - startMs) / 1000);
-      updateLastAssistantMessage(full, { tokens: tokenCount, tokensPerSec: tps });
+      updateLastAssistantMessage(stripModelTags(full), { tokens: tokenCount, tokensPerSec: tps });
     } catch (e: any) {
       if (!e?.message?.includes('abort')) {
         updateLastAssistantMessage(
@@ -323,14 +335,14 @@ export const ChatScreen: React.FC = () => {
           (data: { token: string }) => {
             stepContent += data.token;
             tokenCount++;
-            updateLastAssistantMessage(stepContent);
+            updateLastAssistantMessage(stripModelTags(stepContent));
             if (isFinal) scrollToBottom();
           },
         );
 
         const tps = tokenCount / ((Date.now() - startMs) / 1000);
-        updateLastAssistantMessage(stepContent, { tokens: tokenCount, tokensPerSec: tps });
-        agentResponses.push({ agentName: agent.name, content: stepContent });
+        updateLastAssistantMessage(stripModelTags(stepContent), { tokens: tokenCount, tokensPerSec: tps });
+        agentResponses.push({ agentName: agent.name, content: stripModelTags(stepContent) });
 
         if (!isFinal) await new Promise((r) => setTimeout(r, 200));
       } catch (e: any) {
