@@ -607,6 +607,14 @@ export const ModelsScreen: React.FC = () => {
       <View style={styles.header}>
         <Text style={styles.title}>Models</Text>
         <View style={styles.headerBtns}>
+          <TouchableOpacity
+            style={styles.refreshHeaderBtn}
+            onPress={loadModelList}
+            disabled={refreshing}>
+            {refreshing
+              ? <ActivityIndicator size="small" color={colors.primary} />
+              : <Text style={styles.refreshBtnText}>⟳</Text>}
+          </TouchableOpacity>
           <TouchableOpacity style={styles.downloadHeaderBtn} onPress={() => setShowDownloadModal(true)}>
             <Text style={styles.headerBtnText}>↓ Download</Text>
           </TouchableOpacity>
@@ -864,6 +872,16 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: fontSizes.xxl, fontWeight: '800', color: colors.text },
   headerBtns: { flexDirection: 'row', gap: spacing.sm },
+  refreshHeaderBtn: {
+    backgroundColor: colors.surfaceVariant,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    minWidth: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  refreshBtnText: { color: colors.primary, fontWeight: '700', fontSize: 18 },
   downloadHeaderBtn: {
     backgroundColor: colors.secondary,
     paddingHorizontal: spacing.md,
