@@ -9,8 +9,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/ikppramesh/irai/releases/download/v1.1.3/irai-v1.1.3-android.apk">
-    <img src="https://img.shields.io/badge/Download-APK%20v1.1.3-FFB300?style=for-the-badge&logo=android" alt="Download APK" />
+  <a href="https://github.com/ikppramesh/irai/releases/download/v1.1.4/irai-v1.1.4-android.apk">
+    <img src="https://img.shields.io/badge/Download-APK%20v1.1.4-FFB300?style=for-the-badge&logo=android" alt="Download APK" />
   </a>
   &nbsp;
   <img src="https://img.shields.io/badge/Android-12%2B-green?style=for-the-badge&logo=android" alt="Android 12+" />
@@ -22,7 +22,14 @@
 
 ## Changelog
 
-### v1.1.3 (latest)
+### v1.1.4 (latest)
+
+**News context integration**
+- IRx-1 can now draw on a live news snapshot to give responses awareness of recent events — fetched locally, no data sent to any server
+
+---
+
+### v1.1.3
 
 **Refresh button on Models screen**
 - New ⟳ button in the Models tab header — tap to rescan your device for newly downloaded or imported models without restarting the app
@@ -108,7 +115,7 @@ Designed for the **Samsung Galaxy Fold 7** (Snapdragon 8 Elite, 12GB RAM) but wo
 
 > Direct APK — install without building from source.
 
-**[⬇ Download irai-v1.1.3-android.apk](https://github.com/ikppramesh/irai/releases/download/v1.1.3/irai-v1.1.3-android.apk)** (128 MB)
+**[⬇ Download irai-v1.1.4-android.apk](https://github.com/ikppramesh/irai/releases/download/v1.1.4/irai-v1.1.4-android.apk)** (128 MB)
 
 ### Installation steps
 
