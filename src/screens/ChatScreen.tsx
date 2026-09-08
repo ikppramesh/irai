@@ -15,6 +15,10 @@ import {
   getRelevantMemories, buildMemoryContext, markMemoriesUsed,
   learnFromExchange,
 } from '../utils/memory';
+import {
+  loadNewsCache, refreshNews,
+  getRelevantArticles, buildNewsContext,
+} from '../utils/news';
 
 // ── Strip model reasoning/control tags from output ─────────────────────────────
 // Removes <think>…</think> and any other XML-like tags models emit internally.
@@ -111,9 +115,9 @@ const buildRecentContextForMemory = (messages: Message[], currentQuery: string):
 export const ChatScreen: React.FC = () => {
   const {
     messages, llamaContext, isGenerating, settings,
-    activeAgentId, isMultiAgentMode, memories, isVisionEnabled,
+    activeAgentId, isMultiAgentMode, memories, newsArticles, isVisionEnabled,
     addMessage, updateLastAssistantMessage, clearMessages,
-    setIsGenerating, setMemories,
+    setIsGenerating, setMemories, setNews, setIsNewsRefreshing,
   } = useAppStore();
 
   const flatListRef = useRef<FlatList>(null);
@@ -128,6 +132,21 @@ export const ChatScreen: React.FC = () => {
       await initSeedMemories();
       const mems = await loadMemories();
       setMemories(mems);
+    })();
+  }, []);
+
+  // Load cached news instantly, then refresh from GitHub Pages in the
+  // background. This is what "refresh the app to get updated information"
+  // means in practice — a small JSON fetch, never a model re-download.
+  useEffect(() => {
+    (async () => {
+      const cached = await loadNewsCache();
+      if (cached) setNews(cached.articles, cached.generatedAt, cached.cachedAt);
+
+      setIsNewsRefreshing(true);
+      const { cache } = await refreshNews();
+      if (cache) setNews(cache.articles, cache.generatedAt, cache.cachedAt);
+      setIsNewsRefreshing(false);
     })();
   }, []);
 
@@ -148,13 +167,22 @@ export const ChatScreen: React.FC = () => {
     return buildMemoryContext(relevant);
   };
 
+  // ── News helpers ─────────────────────────────────────────────────────────────
+
+  const getNewsInjection = (currentQuery: string): string => {
+    if (!settings.newsEnabled || newsArticles.length === 0) return '';
+    const relevant = getRelevantArticles(newsArticles, currentQuery, 3);
+    if (relevant.length === 0) return '';
+    return buildNewsContext(relevant);
+  };
+
   // ── Single-agent generation ─────────────────────────────────────────────────
 
   const runSingleAgent = async (userText: string) => {
     const agent = getAgent(activeAgentId);
 
-    // System prompt + memory injection (uses recent context for lookup)
-    const systemPrompt = agent.systemPrompt + getMemoryInjection(userText);
+    // System prompt + memory + current-events injection (uses recent context for lookup)
+    const systemPrompt = agent.systemPrompt + getMemoryInjection(userText) + getNewsInjection(userText);
 
     // Clean history: NO pipeline steps, current user message at end
     const history = buildCleanHistory(messagesRef.current, userText);
@@ -213,7 +241,7 @@ export const ChatScreen: React.FC = () => {
   const runVisionAgent = async (userText: string, image: AttachedImage) => {
     const agent = getAgent(activeAgentId);
     const queryForMemory = userText || 'Describe this image.';
-    const systemPrompt = agent.systemPrompt + getMemoryInjection(queryForMemory);
+    const systemPrompt = agent.systemPrompt + getMemoryInjection(queryForMemory) + getNewsInjection(queryForMemory);
 
     // Prior turns as plain text; the current turn carries the image.
     const priorTurns = messagesRef.current
@@ -289,8 +317,8 @@ export const ChatScreen: React.FC = () => {
     // This is the KEY FIX: agents know what was discussed before this message
     const conversationContext = buildConversationContext(messagesRef.current, userText);
 
-    // Memory injection for the synthesis step
-    const memoryInjection = getMemoryInjection(userText);
+    // Memory + current-events injection for the synthesis step
+    const memoryInjection = getMemoryInjection(userText) + getNewsInjection(userText);
 
     const agentResponses: Array<{ agentName: string; content: string }> = [];
 

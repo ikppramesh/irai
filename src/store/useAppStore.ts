@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { Memory } from '../utils/memory';
+import { NewsArticle } from '../utils/news';
 
 export interface Message {
   id: string;
@@ -32,6 +33,7 @@ export interface AppSettings {
   stopWords: string[];
   showTokenSpeed: boolean;
   memoryEnabled: boolean;
+  newsEnabled: boolean;
 }
 
 interface AppState {
@@ -58,6 +60,12 @@ interface AppState {
   // Memory
   memories: Memory[];
 
+  // News (current-events retrieval)
+  newsArticles: NewsArticle[];
+  newsGeneratedAt: number | null;
+  newsLastFetchedAt: number | null;
+  isNewsRefreshing: boolean;
+
   // Settings
   settings: AppSettings;
 
@@ -77,6 +85,8 @@ interface AppState {
   setActiveAgentId: (id: string) => void;
   setMultiAgentMode: (v: boolean) => void;
   setMemories: (m: Memory[]) => void;
+  setNews: (articles: NewsArticle[], generatedAt: number | null, fetchedAt: number | null) => void;
+  setIsNewsRefreshing: (v: boolean) => void;
   updateSettings: (s: Partial<AppSettings>) => void;
 }
 
@@ -94,6 +104,10 @@ export const useAppStore = create<AppState>((set) => ({
   activeAgentId: 'general',
   isMultiAgentMode: false,
   memories: [],
+  newsArticles: [],
+  newsGeneratedAt: null,
+  newsLastFetchedAt: null,
+  isNewsRefreshing: false,
   settings: {
     systemPrompt: 'You are irai, a helpful, harmless, and honest AI assistant running completely offline on this device. Be concise and helpful.',
     temperature: 0.7,
@@ -103,6 +117,7 @@ export const useAppStore = create<AppState>((set) => ({
     stopWords: ['</s>', '<|end|>', '<|im_end|>', 'Human:', 'User:'],
     showTokenSpeed: true,
     memoryEnabled: true,
+    newsEnabled: true,
   },
 
   addMessage: (msg) => set((s) => ({ messages: [...s.messages, msg] })),
@@ -130,5 +145,8 @@ export const useAppStore = create<AppState>((set) => ({
   setActiveAgentId: (id) => set({ activeAgentId: id }),
   setMultiAgentMode: (v) => set({ isMultiAgentMode: v }),
   setMemories: (m) => set({ memories: m }),
+  setNews: (articles, generatedAt, fetchedAt) =>
+    set({ newsArticles: articles, newsGeneratedAt: generatedAt, newsLastFetchedAt: fetchedAt }),
+  setIsNewsRefreshing: (v) => set({ isNewsRefreshing: v }),
   updateSettings: (s) => set((st) => ({ settings: { ...st.settings, ...s } })),
 }));

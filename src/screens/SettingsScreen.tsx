@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Slider from '@react-native-community/slider';
 import { useAppStore } from '../store/useAppStore';
 import { colors, spacing, fontSizes, borderRadius } from '../theme';
+import { refreshNews } from '../utils/news';
 
 const SettingSlider = ({
   label,
@@ -59,7 +60,27 @@ const settingStyles = StyleSheet.create({
 });
 
 export const SettingsScreen: React.FC = () => {
-  const { settings, updateSettings, llamaContext } = useAppStore();
+  const {
+    settings, updateSettings, llamaContext,
+    newsArticles, newsGeneratedAt, isNewsRefreshing,
+    setNews, setIsNewsRefreshing,
+  } = useAppStore();
+
+  const handleRefreshNews = async () => {
+    setIsNewsRefreshing(true);
+    const { cache, error } = await refreshNews();
+    if (cache) setNews(cache.articles, cache.generatedAt, cache.cachedAt);
+    setIsNewsRefreshing(false);
+    if (error && !cache) {
+      Alert.alert('Refresh Failed', error);
+    }
+  };
+
+  const newsUpdatedLabel = newsGeneratedAt
+    ? new Date(newsGeneratedAt * 1000).toLocaleString('en-US', {
+        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+      })
+    : 'never';
 
   const handleReset = () => {
     Alert.alert('Reset Settings', 'Reset all settings to defaults?', [
@@ -156,6 +177,39 @@ export const SettingsScreen: React.FC = () => {
                 trackColor={{ false: colors.cardBorder, true: colors.primary }}
                 thumbColor="#fff"
               />
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>CURRENT EVENTS</Text>
+          <View style={styles.card}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: colors.text, fontSize: fontSizes.sm, fontWeight: '600' }}>News & AI updates</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: fontSizes.xs, marginTop: 2 }}>
+                  Grounds answers in recent news · retrieval only, model weights unchanged
+                </Text>
+              </View>
+              <Switch
+                value={settings.newsEnabled}
+                onValueChange={(v) => updateSettings({ newsEnabled: v })}
+                trackColor={{ false: colors.cardBorder, true: colors.primary }}
+                thumbColor="#fff"
+              />
+            </View>
+            <View style={{
+              flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+              marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.cardBorder,
+            }}>
+              <Text style={{ color: colors.textMuted, fontSize: fontSizes.xs }}>
+                {newsArticles.length} articles · updated {newsUpdatedLabel}
+              </Text>
+              <TouchableOpacity onPress={handleRefreshNews} disabled={isNewsRefreshing}>
+                <Text style={{ color: colors.primary, fontSize: fontSizes.sm, fontWeight: '600' }}>
+                  {isNewsRefreshing ? 'Refreshing…' : 'Refresh now'}
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
