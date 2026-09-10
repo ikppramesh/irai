@@ -206,7 +206,13 @@ export const ChatScreen: React.FC = () => {
       await llamaContext.completion(
         {
           prompt,
-          n_predict: settings.maxTokens,
+          // -1: no artificial cap -- generate until the model actually
+          // stops (a real stop sequence) or the context window is full.
+          // A fixed maxTokens ceiling was cutting answers off mid-thought
+          // (e.g. a multi-part code answer stopping partway through the
+          // second block); the context window is a real, unavoidable
+          // limit, an arbitrary token cap picked in advance is not.
+          n_predict: -1,
           temperature: settings.temperature,
           top_p: settings.topP,
           stop: settings.stopWords,
@@ -278,7 +284,13 @@ export const ChatScreen: React.FC = () => {
       await llamaContext.completion(
         {
           messages: oaiMessages,
-          n_predict: settings.maxTokens,
+          // -1: no artificial cap -- generate until the model actually
+          // stops (a real stop sequence) or the context window is full.
+          // A fixed maxTokens ceiling was cutting answers off mid-thought
+          // (e.g. a multi-part code answer stopping partway through the
+          // second block); the context window is a real, unavoidable
+          // limit, an arbitrary token cap picked in advance is not.
+          n_predict: -1,
           temperature: settings.temperature,
           top_p: settings.topP,
           stop: settings.stopWords,
@@ -362,7 +374,11 @@ export const ChatScreen: React.FC = () => {
         await llamaContext.completion(
           {
             prompt: fullPrompt,
-            n_predict: isFinal ? settings.maxTokens : Math.min(settings.maxTokens, 350),
+            // Final answer: uncapped, same reasoning as the single-agent
+            // path. Intermediate reasoner/analyst/critic steps keep a
+            // fixed scratch-space cap -- deliberately short, not user-
+            // visible as "the answer".
+            n_predict: isFinal ? -1 : 350,
             temperature: isFinal ? settings.temperature : 0.5,
             top_p: settings.topP,
             stop: settings.stopWords,

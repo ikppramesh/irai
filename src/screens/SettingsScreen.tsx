@@ -92,7 +92,6 @@ export const SettingsScreen: React.FC = () => {
             systemPrompt: 'You are irai, a helpful, harmless, and honest AI assistant running completely offline on this device. Be concise and helpful.',
             temperature: 0.7,
             topP: 0.9,
-            maxTokens: 768,
             contextLength: 4096,
           }),
       },
@@ -129,14 +128,6 @@ export const SettingsScreen: React.FC = () => {
               step={0.05}
               onChange={(v) => updateSettings({ topP: Math.round(v * 20) / 20 })}
               format={(v) => v.toFixed(2)}
-            />
-            <SettingSlider
-              label="Max Tokens"
-              value={settings.maxTokens}
-              min={64}
-              max={4096}
-              step={64}
-              onChange={(v) => updateSettings({ maxTokens: Math.round(v) })}
             />
             <SettingSlider
               label="Context Length"
