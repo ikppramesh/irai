@@ -7,6 +7,7 @@ import { MarkdownRenderer } from './MarkdownRenderer';
 interface Props {
   message: Message;
   isStreaming?: boolean;
+  onRetry?: () => void;
 }
 
 // Pulsing dot shown while waiting for the first token
@@ -27,7 +28,7 @@ const StreamCursor: React.FC = () => {
   return <Animated.View style={[styles.cursorDot, { opacity }]} />;
 };
 
-export const MessageBubble: React.FC<Props> = ({ message, isStreaming = false }) => {
+export const MessageBubble: React.FC<Props> = ({ message, isStreaming = false, onRetry }) => {
   const isUser      = message.role === 'user';
   const isWaiting   = message.role === 'assistant' && message.content === '';
   const isPipeline  = message.isPipelineStep;
@@ -105,11 +106,20 @@ export const MessageBubble: React.FC<Props> = ({ message, isStreaming = false })
         </>
       )}
 
-      {/* Token speed */}
-      {!isStreaming && !!message.tokensPerSec && message.tokensPerSec > 0 && (
-        <Text style={styles.meta}>
-          {message.tokensPerSec.toFixed(1)} tok/s · {message.tokens} tokens
-        </Text>
+      {/* Token speed + retry */}
+      {!isStreaming && (!!message.tokensPerSec && message.tokensPerSec > 0 || onRetry) && (
+        <View style={styles.metaRow}>
+          {!!message.tokensPerSec && message.tokensPerSec > 0 && (
+            <Text style={styles.meta}>
+              {message.tokensPerSec.toFixed(1)} tok/s · {message.tokens} tokens
+            </Text>
+          )}
+          {onRetry && (
+            <TouchableOpacity onPress={onRetry} style={styles.retryBtn} hitSlop={8}>
+              <Text style={styles.retryText}>↻ Retry</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       )}
     </View>
   );
@@ -186,7 +196,21 @@ const styles = StyleSheet.create({
     fontFamily: fonts.sans,
     fontSize: fontSizes.xs,
     color: colors.textMuted,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginTop: 6,
+  },
+  retryBtn: {
+    paddingVertical: 2,
+  },
+  retryText: {
+    fontFamily: fonts.sansMedium,
+    fontSize: fontSizes.xs,
+    fontWeight: '600',
+    color: colors.primary,
   },
   cursorDot: {
     width: 8,

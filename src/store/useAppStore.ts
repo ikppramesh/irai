@@ -71,6 +71,7 @@ interface AppState {
 
   // Actions
   addMessage: (msg: Message) => void;
+  setMessages: (msgs: Message[]) => void;
   updateLastAssistantMessage: (content: string, extra?: Partial<Message>) => void;
   clearMessages: () => void;
   setCurrentModel: (m: ModelInfo | null) => void;
@@ -121,6 +122,7 @@ export const useAppStore = create<AppState>((set) => ({
   },
 
   addMessage: (msg) => set((s) => ({ messages: [...s.messages, msg] })),
+  setMessages: (msgs) => set({ messages: msgs }),
   updateLastAssistantMessage: (content, extra) =>
     set((s) => {
       const msgs = [...s.messages];

@@ -116,7 +116,7 @@ export const ChatScreen: React.FC = () => {
   const {
     messages, llamaContext, isGenerating, settings,
     activeAgentId, isMultiAgentMode, memories, newsArticles, isVisionEnabled,
-    addMessage, updateLastAssistantMessage, clearMessages,
+    addMessage, setMessages, updateLastAssistantMessage, clearMessages,
     setIsGenerating, setMemories, setNews, setIsNewsRefreshing,
   } = useAppStore();
 
@@ -447,6 +447,45 @@ export const ChatScreen: React.FC = () => {
     ]);
   };
 
+  // ── Retry: regenerate a response to the same question ──────────────────────
+  const handleRetry = async (assistantMessage: Message) => {
+    if (!llamaContext || isGenerating) return;
+
+    const current = messagesRef.current;
+    const idx = current.findIndex((m) => m.id === assistantMessage.id);
+    if (idx === -1) return;
+
+    // Walk back to the user turn this response answered (skipping any
+    // multi-agent pipeline steps in between).
+    let userIdx = idx - 1;
+    while (userIdx >= 0 && current[userIdx].role !== 'user') userIdx--;
+    if (userIdx === -1) return;
+
+    const userMsg = current[userIdx];
+    if (userMsg.images?.length) {
+      Alert.alert('Cannot Retry', 'Retrying a message with an attached image isn’t supported yet.');
+      return;
+    }
+
+    const userText = userMsg.content;
+    // Drop the old user turn + everything after it, then resend exactly
+    // like a fresh message -- this rebuilds history without the old
+    // (unwanted) response instead of leaving it in context.
+    setMessages(current.slice(0, userIdx));
+    addMessage({ ...userMsg, id: `${Date.now()}_user`, timestamp: Date.now() });
+    setIsGenerating(true);
+    try {
+      if (isMultiAgentMode) {
+        await runMultiAgentPipeline(userText);
+      } else {
+        await runSingleAgent(userText);
+      }
+    } finally {
+      setIsGenerating(false);
+      scrollToBottom();
+    }
+  };
+
   const visibleMessages = messages.filter((m) => m.role !== 'system');
   const lastIndex = visibleMessages.length - 1;
 
@@ -477,6 +516,11 @@ export const ChatScreen: React.FC = () => {
               message={item}
               isStreaming={
                 isGenerating && index === lastIndex && item.role === 'assistant'
+              }
+              onRetry={
+                !isGenerating && index === lastIndex && item.role === 'assistant' && !item.isPipelineStep
+                  ? () => handleRetry(item)
+                  : undefined
               }
             />
           )}
