@@ -98,17 +98,17 @@ const buildConversationContext = (messages: Message[], currentQuestion: string):
 };
 
 /**
- * Build the recent context string for memory retrieval.
- * Merges last few messages so "food?" finds "Hyderabad" from the previous turn.
+ * Build the recent-context string for memory retrieval -- the last few
+ * messages, NOT including the current query (getRelevantMemories takes
+ * that separately and weights it much higher, so a stale topic from a
+ * few turns back can't hijack an unrelated new question on its own).
  */
-const buildRecentContextForMemory = (messages: Message[], currentQuery: string): string => {
-  const recent = messages
+const buildRecentContextForMemory = (messages: Message[]): string =>
+  messages
     .filter((m) => m.role !== 'system' && !m.isPipelineStep && m.content.trim())
     .slice(-6)
     .map((m) => m.content)
     .join(' ');
-  return `${recent} ${currentQuery}`;
-};
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
@@ -159,7 +159,7 @@ export const ChatScreen: React.FC = () => {
   const getMemoryInjection = (currentQuery: string): string => {
     if (!settings.memoryEnabled || memories.length === 0) return '';
     // Use recent conversation context so follow-up questions get correct memories
-    const recentCtx = buildRecentContextForMemory(messagesRef.current, currentQuery);
+    const recentCtx = buildRecentContextForMemory(messagesRef.current);
     const relevant = getRelevantMemories(memories, currentQuery, recentCtx, 8);
     if (relevant.length === 0) return '';
     // Mark them as used (async, don't block)

@@ -137,35 +137,48 @@ export const markMemoriesUsed = async (ids: string[]): Promise<void> => {
  * 1. The current query
  * 2. PLUS recent conversation context (so "food?" finds "Hyderabad" from prior turns)
  */
+const STOPWORDS = ['the', 'and', 'for', 'are', 'was', 'what', 'tell', 'about', 'give', 'can', 'you', 'that', 'this', 'with', 'from'];
+
+const extractWords = (text: string): string[] =>
+  text
+    .toLowerCase()
+    .split(/\W+/)
+    .filter((w) => w.length > 2 && !STOPWORDS.includes(w));
+
 export const getRelevantMemories = (
   memories: Memory[],
   currentQuery: string,
-  recentContext: string = '',  // last few messages combined
+  recentContext: string = '',  // last few messages, NOT including currentQuery
   limit = 8,
 ): Memory[] => {
   if (memories.length === 0) return [];
 
-  // Combine current query + recent context for broader matching
-  const fullSearch = `${currentQuery} ${recentContext}`.toLowerCase();
-  const words = fullSearch
-    .split(/\W+/)
-    .filter((w) => w.length > 2)
-    // Remove very common words
-    .filter((w) => !['the', 'and', 'for', 'are', 'was', 'what', 'tell', 'about', 'give', 'can', 'you', 'that', 'this', 'with', 'from'].includes(w));
+  const queryWords = extractWords(currentQuery);
+  const contextWords = extractWords(recentContext).filter((w) => !queryWords.includes(w));
 
-  if (words.length === 0) return memories.slice(0, 3);
+  if (queryWords.length === 0 && contextWords.length === 0) return memories.slice(0, 3);
 
   return memories
     .map((m) => {
       const text = (m.content + ' ' + m.tags.join(' ')).toLowerCase();
-      // Score: keyword hits + boost for frequently used memories + boost for tags
-      const keywordScore = words.reduce((acc, w) => acc + (text.includes(w) ? 1 : 0), 0);
-      const tagBonus = m.tags.some((t) => words.some((w) => t.includes(w))) ? 0.5 : 0;
+      // The current question's own words count fully. Words carried over
+      // from earlier turns count for much less, on purpose -- otherwise a
+      // stale topic from a few messages back (e.g. an offhand mention of
+      // Hyderabad) can hijack an unrelated new question (e.g. a coding
+      // request) purely because it shares no words with the memory except
+      // through leftover context. This still supports the intended
+      // "food?" -> finds "Hyderabad" from the prior turn case, since
+      // "food" itself is a query word there.
+      const queryScore = queryWords.reduce((acc, w) => acc + (text.includes(w) ? 1 : 0), 0);
+      const contextScore = contextWords.reduce((acc, w) => acc + (text.includes(w) ? 1 : 0), 0);
+      const tagBonus = m.tags.some((t) => queryWords.some((w) => t.includes(w))) ? 0.5 : 0;
       const useBonus = Math.min(m.useCount * 0.1, 1.0);
-      const total = keywordScore + tagBonus + useBonus;
-      return { m, score: total };
+      const total = queryScore + contextScore * 0.3 + tagBonus + useBonus;
+      return { m, score: total, queryScore };
     })
-    .filter((x) => x.score > 0)
+    // Require a hit on the CURRENT question, or an unusually strong
+    // carried-over signal -- not just one stray leftover word.
+    .filter((x) => x.queryScore > 0 || x.score >= 1.5)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
     .map((x) => x.m);
