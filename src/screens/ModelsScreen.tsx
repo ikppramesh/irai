@@ -20,6 +20,7 @@ import { initLlama } from 'llama.rn';
 import { useAppStore, ModelInfo } from '../store/useAppStore';
 import { colors, spacing, fontSizes, borderRadius } from '../theme';
 import { getModelFiles, getMmprojFiles, MODELS_DIR, ensureModelsDir, formatBytes } from '../utils/modelUtils';
+import { checkForModelUpdate, fetchLatestManifest, markInstalledVersion, ModelVersionManifest } from '../utils/modelUpdate';
 
 // A small, mobile-friendly vision model + projector pair for image understanding.
 // More vision (mmproj) models can be imported manually — look for "mmproj" GGUF
@@ -103,7 +104,7 @@ const DOWNLOADABLE_MODELS = [
   {
     id: 'irx-1',
     name: 'IRx-1',
-    description: 'ikppramesh · Fine-tuned Qwen3.5-2B, fast & private',
+    description: 'ikppramesh · Personal fine-tuned model, fast & private',
     size: '1.2 GB',
     tag: 'Custom',
     filename: 'irx-1-Q4_K_M.gguf',
@@ -146,6 +147,9 @@ export const ModelsScreen: React.FC = () => {
   const [visionDownloadProgress, setVisionDownloadProgress] = useState(0);
   const [showCustomUrlModal, setShowCustomUrlModal] = useState(false);
   const [customUrl, setCustomUrl] = useState('');
+  const [irx1Latest, setIrx1Latest] = useState<ModelVersionManifest | null>(null);
+  const [irx1HasUpdate, setIrx1HasUpdate] = useState(false);
+  const [irx1Checking, setIrx1Checking] = useState(false);
 
   const loadModelList = useCallback(async () => {
     setRefreshing(true);
@@ -236,6 +240,13 @@ export const ModelsScreen: React.FC = () => {
           delete updated[model.id];
           return updated;
         });
+        if (model.id === 'irx-1') {
+          // Record which build this is, so a later "Check for updates"
+          // has something to compare the manifest against.
+          const manifest = await fetchLatestManifest();
+          if (manifest) await markInstalledVersion(manifest);
+          setIrx1HasUpdate(false);
+        }
         await loadModelList();
         Alert.alert('Download Complete', `${model.name} is ready to use!`);
       } else {
@@ -254,6 +265,48 @@ export const ModelsScreen: React.FC = () => {
         Alert.alert('Download Failed', e.message || 'Could not download model.');
       }
     }
+  };
+
+  // ─── IRx-1 update check (manual only — never downloads on its own) ─────────
+  const isModelDownloaded = (model: typeof DOWNLOADABLE_MODELS[0]) =>
+    models.some((m) => m.path === `${MODELS_DIR}/${model.filename}`);
+
+  const handleCheckIrx1Update = async () => {
+    setIrx1Checking(true);
+    try {
+      const { hasUpdate, latest, error } = await checkForModelUpdate();
+      if (error) {
+        Alert.alert('Check Failed', error);
+        return;
+      }
+      setIrx1Latest(latest);
+      setIrx1HasUpdate(hasUpdate);
+      if (!hasUpdate) {
+        Alert.alert('Up to Date', 'You have the latest IRx-1 build.');
+      }
+    } finally {
+      setIrx1Checking(false);
+    }
+  };
+
+  const handleUpdateIrx1 = (model: typeof DOWNLOADABLE_MODELS[0]) => {
+    Alert.alert(
+      'Update Available',
+      `A newer IRx-1 build is available (${irx1Latest ? formatBytes(irx1Latest.size_bytes) : model.size}). Re-download now?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Update',
+          onPress: async () => {
+            const destPath = `${MODELS_DIR}/${model.filename}`;
+            const exists = await RNFS.exists(destPath);
+            if (exists) await RNFS.unlink(destPath);
+            setIrx1HasUpdate(false);
+            await handleDownload(model);
+          },
+        },
+      ],
+    );
   };
 
   const handleCancelDownload = (model: typeof DOWNLOADABLE_MODELS[0]) => {
@@ -569,6 +622,7 @@ export const ModelsScreen: React.FC = () => {
   const renderDownloadRow = (item: typeof DOWNLOADABLE_MODELS[0]) => {
     const dl = downloads[item.id];
     const isDownloading = !!dl;
+    const isIrx1Installed = item.id === 'irx-1' && isModelDownloaded(item);
 
     return (
       <View key={item.id} style={styles.dlRow}>
@@ -587,16 +641,27 @@ export const ModelsScreen: React.FC = () => {
               <Text style={styles.progressText}>{dl.progress}%</Text>
             </View>
           )}
+          {isIrx1Installed && !isDownloading && (
+            <TouchableOpacity onPress={handleCheckIrx1Update} disabled={irx1Checking}>
+              <Text style={styles.dlCheckUpdateText}>
+                {irx1Checking ? 'Checking…' : 'Check for updates'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
         {isDownloading ? (
           <TouchableOpacity style={[styles.dlBtn, styles.cancelBtn]} onPress={() => handleCancelDownload(item)}>
             <Text style={styles.dlBtnText}>Cancel</Text>
           </TouchableOpacity>
-        ) : (
+        ) : isIrx1Installed && irx1HasUpdate ? (
+          <TouchableOpacity style={[styles.dlBtn, styles.downloadBtn]} onPress={() => handleUpdateIrx1(item)}>
+            <Text style={styles.dlBtnText}>↻ Update</Text>
+          </TouchableOpacity>
+        ) : !isIrx1Installed ? (
           <TouchableOpacity style={[styles.dlBtn, styles.downloadBtn]} onPress={() => handleDownload(item)}>
             <Text style={styles.dlBtnText}>↓ Get</Text>
           </TouchableOpacity>
-        )}
+        ) : null}
       </View>
     );
   };
@@ -1038,6 +1103,7 @@ const styles = StyleSheet.create({
   tagText: { fontSize: fontSizes.xs, color: colors.primary, fontWeight: '700' },
   dlDesc: { fontSize: fontSizes.xs, color: colors.textSecondary, marginBottom: 4 },
   dlSize: { fontSize: fontSizes.xs, color: colors.textMuted, fontWeight: '600' },
+  dlCheckUpdateText: { fontSize: fontSizes.xs, color: colors.primary, fontWeight: '600', marginTop: 4 },
   progressBarBg: {
     marginTop: spacing.sm,
     height: 6,
