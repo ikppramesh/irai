@@ -617,11 +617,19 @@ export const ModelsScreen: React.FC = () => {
               <Text style={styles.btnText}>Unload</Text>
             </TouchableOpacity>
           ) : showRefresh ? (
-            <TouchableOpacity
-              style={[styles.btn, styles.refreshModelBtn]}
-              onPress={() => handleUpdateIrx1(IRX1_MODEL)}>
-              <Text style={styles.btnText}>↻ Refresh</Text>
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity
+                style={[styles.btn, styles.loadBtn]}
+                onPress={() => handleLoadModel(item)}
+                disabled={isModelLoading}>
+                <Text style={styles.btnText}>Load</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.btn, styles.refreshModelBtn]}
+                onPress={() => handleUpdateIrx1(IRX1_MODEL)}>
+                <Text style={styles.btnText}>↻ Refresh</Text>
+              </TouchableOpacity>
+            </>
           ) : (
             <TouchableOpacity
               style={[styles.btn, styles.loadBtn]}
