@@ -112,7 +112,7 @@ export const useAppStore = create<AppState>((set) => ({
     systemPrompt: 'You are irai, a helpful, harmless, and honest AI assistant running completely offline on this device. Be concise and helpful.',
     temperature: 0.7,
     topP: 0.9,
-    contextLength: 4096,
+    contextLength: 8192,
     stopWords: ['</s>', '<|end|>', '<|im_end|>', 'Human:', 'User:'],
     showTokenSpeed: true,
     memoryEnabled: true,

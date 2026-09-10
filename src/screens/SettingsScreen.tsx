@@ -92,7 +92,7 @@ export const SettingsScreen: React.FC = () => {
             systemPrompt: 'You are irai, a helpful, harmless, and honest AI assistant running completely offline on this device. Be concise and helpful.',
             temperature: 0.7,
             topP: 0.9,
-            contextLength: 4096,
+            contextLength: 8192,
           }),
       },
     ]);
@@ -133,7 +133,7 @@ export const SettingsScreen: React.FC = () => {
               label="Context Length"
               value={settings.contextLength}
               min={512}
-              max={8192}
+              max={16384}
               step={512}
               onChange={(v) => updateSettings({ contextLength: Math.round(v) })}
             />
