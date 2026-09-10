@@ -9,8 +9,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/ikppramesh/irai/releases/download/v1.1.4/irai-v1.1.4-android.apk">
-    <img src="https://img.shields.io/badge/Download-APK%20v1.1.4-FFB300?style=for-the-badge&logo=android" alt="Download APK" />
+  <a href="https://github.com/ikppramesh/irai/releases/download/v1.1.5/irai-v1.1.5-android.apk">
+    <img src="https://img.shields.io/badge/Download-APK%20v1.1.5-FFB300?style=for-the-badge&logo=android" alt="Download APK" />
   </a>
   &nbsp;
   <img src="https://img.shields.io/badge/Android-12%2B-green?style=for-the-badge&logo=android" alt="Android 12+" />
@@ -30,6 +30,17 @@
 - The Download modal's IRx-1 row also gets a manual **"Check for updates"** link and an **↻ Update** action once one is found
 - This is a manual, opt-in refresh by design — the app never silently swaps a multi-gigabyte model file on its own, over any connection
 - Fixed the IRx-1 entry's description, which named the underlying base model — now just describes it as a personal fine-tuned model
+
+**Retry** — a ↻ Retry action on the last response regenerates it without duplicating the question or polluting history with the discarded attempt.
+
+**Fixed the real cause of answers cutting off mid-code**
+- The actual bug: `stripModelTags` (meant to hide an in-progress `<think>` block) matched *any* `<word>`-shaped text, not just the model's own control tags. `#include <cmath>`, `#include <iostream>`, `vector<int>` — any C/C++ header or template triggered it, silently discarding everything the model generated after that point even though it kept going. Fixed by scoping the strip to the model's actual internal tags only.
+- Also removed the fixed response-length cap entirely (generation now runs until a real stop, not an arbitrary count) and raised the context window default from 2048 to 8192, since accumulated conversation history was also eating into the room available for a fresh long answer. Neither was the root cause, but both are genuine improvements kept alongside the real fix.
+
+**Fixed a memory-retrieval bug that could derail unrelated questions**
+- Reproduced directly: asking a coding question shortly after any earlier food/Hyderabad mention in the same session could pull an unrelated seed memory into context and derail the answer entirely. The current question now has to actually match before a memory gets injected; a stale topic from a few turns back is no longer enough on its own.
+
+**Fixed the "Cannot connect to Metro" banner overlapping the bottom tab bar** — was a debug-build artifact (`react-native run-android` always expects a live dev server), not an app bug. Builds now use the standalone pre-bundled process so installed APKs never depend on Metro.
 
 ---
 
@@ -126,7 +137,7 @@ Designed for the **Samsung Galaxy Fold 7** (Snapdragon 8 Elite, 12GB RAM) but wo
 
 > Direct APK — install without building from source.
 
-**[⬇ Download irai-v1.1.4-android.apk](https://github.com/ikppramesh/irai/releases/download/v1.1.4/irai-v1.1.4-android.apk)** (128 MB)
+**[⬇ Download irai-v1.1.5-android.apk](https://github.com/ikppramesh/irai/releases/download/v1.1.5/irai-v1.1.5-android.apk)** (124 MB)
 
 ### Installation steps
 
