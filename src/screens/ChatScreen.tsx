@@ -21,14 +21,26 @@ import {
 } from '../utils/news';
 
 // ── Strip model reasoning/control tags from output ─────────────────────────────
-// Removes <think>…</think> and any other XML-like tags models emit internally.
+// Removes <think>…</think> and similar internal control tags a model might
+// emit despite being told not to. Deliberately scoped to a known tag list --
+// NOT any generic <word> pattern. A generic version of this used to match
+// completely ordinary content and truncate the visible answer right there:
+// C/C++ headers (#include <cmath>, <iostream>), templates (vector<int>),
+// any code containing angle brackets at all. The model kept generating past
+// that point (the token count proved it), the text just never made it to
+// the screen because everything after the first "<word" was discarded.
+const INTERNAL_TAGS = ['think', 'thinking', 'reasoning', 'scratchpad'];
 const stripModelTags = (text: string): string => {
-  // Remove complete <tag>…</tag> blocks (e.g. <think>…</think>)
-  let out = text.replace(/<([a-zA-Z][a-zA-Z0-9_-]*)>[\s\S]*?<\/\1>/g, '');
-  // While streaming the closing tag may not have arrived yet — hide from opening tag onwards
-  out = out.replace(/<[a-zA-Z][a-zA-Z0-9_-]*>[\s\S]*$/, '');
-  // Remove any stray standalone open/close tags
-  out = out.replace(/<\/?[a-zA-Z][a-zA-Z0-9_-]*>/g, '');
+  let out = text;
+  for (const tag of INTERNAL_TAGS) {
+    // Remove a complete <tag>…</tag> block.
+    out = out.replace(new RegExp(`<${tag}>[\\s\\S]*?</${tag}>`, 'gi'), '');
+    // While streaming, the closing tag may not have arrived yet -- hide
+    // from this specific opening tag onwards, not from any "<word>".
+    out = out.replace(new RegExp(`<${tag}>[\\s\\S]*$`, 'i'), '');
+    // Remove any stray standalone open/close tag for it.
+    out = out.replace(new RegExp(`</?${tag}>`, 'gi'), '');
+  }
   return out.trim();
 };
 
