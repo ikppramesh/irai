@@ -22,7 +22,18 @@
 
 ## Changelog
 
-### v1.1.4 (latest)
+### v1.1.5 (latest)
+
+**IRx-1 self-update: check and refresh without a full reinstall**
+- The Models screen now silently checks IRx-1's build manifest on Hugging Face as soon as you view it — a tiny JSON fetch, not a download, so it costs nothing and never happens without you opening the screen
+- When a newer build is published, the installed IRx-1 card shows **Load / ↻ Refresh / Delete** together instead of forcing a choice — keep using the version you have, or tap Refresh to swap in the new one (deletes the old file, re-downloads, no manual URL hunting)
+- The Download modal's IRx-1 row also gets a manual **"Check for updates"** link and an **↻ Update** action once one is found
+- This is a manual, opt-in refresh by design — the app never silently swaps a multi-gigabyte model file on its own, over any connection
+- Fixed the IRx-1 entry's description, which named the underlying base model — now just describes it as a personal fine-tuned model
+
+---
+
+### v1.1.4
 
 **News context integration**
 - IRx-1 can now draw on a live news snapshot to give responses awareness of recent events — fetched locally, no data sent to any server
