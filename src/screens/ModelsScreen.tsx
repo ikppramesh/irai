@@ -112,6 +112,8 @@ const DOWNLOADABLE_MODELS = [
   },
 ];
 
+const IRX1_MODEL = DOWNLOADABLE_MODELS.find((m) => m.id === 'irx-1')!;
+
 interface DownloadState {
   modelId: string;
   progress: number; // 0–100
@@ -167,6 +169,15 @@ export const ModelsScreen: React.FC = () => {
   useEffect(() => {
     loadModelList();
   }, [loadModelList]);
+
+  // Check for an IRx-1 update as soon as this screen is viewed (a cheap
+  // JSON fetch, not a download) so the refresh affordance is already there
+  // instead of waiting for a manual "Check for updates" tap.
+  useEffect(() => {
+    const irx1Installed = models.some((m) => m.path === `${MODELS_DIR}/${IRX1_MODEL.filename}`);
+    if (irx1Installed) handleCheckIrx1Update(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [models]);
 
   // ─── Import from file ───────────────────────────────────────────────────────
   const handleImportModel = async () => {
@@ -271,21 +282,21 @@ export const ModelsScreen: React.FC = () => {
   const isModelDownloaded = (model: typeof DOWNLOADABLE_MODELS[0]) =>
     models.some((m) => m.path === `${MODELS_DIR}/${model.filename}`);
 
-  const handleCheckIrx1Update = async () => {
-    setIrx1Checking(true);
+  const handleCheckIrx1Update = async (silent = false) => {
+    if (!silent) setIrx1Checking(true);
     try {
       const { hasUpdate, latest, error } = await checkForModelUpdate();
       if (error) {
-        Alert.alert('Check Failed', error);
+        if (!silent) Alert.alert('Check Failed', error);
         return;
       }
       setIrx1Latest(latest);
       setIrx1HasUpdate(hasUpdate);
-      if (!hasUpdate) {
+      if (!hasUpdate && !silent) {
         Alert.alert('Up to Date', 'You have the latest IRx-1 build.');
       }
     } finally {
-      setIrx1Checking(false);
+      if (!silent) setIrx1Checking(false);
     }
   };
 
@@ -588,6 +599,8 @@ export const ModelsScreen: React.FC = () => {
   // ─── Render downloaded model card ───────────────────────────────────────────
   const renderModel = ({ item }: { item: ModelInfo }) => {
     const isLoaded = loadedModelPath === item.path;
+    const isIrx1 = item.path === `${MODELS_DIR}/${IRX1_MODEL.filename}`;
+    const showRefresh = isIrx1 && irx1HasUpdate && !isLoaded;
     return (
       <View style={[styles.modelCard, isLoaded && styles.modelCardActive]}>
         <View style={styles.modelInfo}>
@@ -595,12 +608,19 @@ export const ModelsScreen: React.FC = () => {
           <View style={styles.modelTexts}>
             <Text style={styles.modelName} numberOfLines={2}>{item.name}</Text>
             <Text style={styles.modelSize}>{item.displaySize}</Text>
+            {showRefresh && <Text style={styles.dlCheckUpdateText}>New build available</Text>}
           </View>
         </View>
         <View style={styles.modelActions}>
           {isLoaded ? (
             <TouchableOpacity style={[styles.btn, styles.unloadBtn]} onPress={handleUnloadModel}>
               <Text style={styles.btnText}>Unload</Text>
+            </TouchableOpacity>
+          ) : showRefresh ? (
+            <TouchableOpacity
+              style={[styles.btn, styles.refreshModelBtn]}
+              onPress={() => handleUpdateIrx1(IRX1_MODEL)}>
+              <Text style={styles.btnText}>↻ Refresh</Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
@@ -642,7 +662,7 @@ export const ModelsScreen: React.FC = () => {
             </View>
           )}
           {isIrx1Installed && !isDownloading && (
-            <TouchableOpacity onPress={handleCheckIrx1Update} disabled={irx1Checking}>
+            <TouchableOpacity onPress={() => handleCheckIrx1Update()} disabled={irx1Checking}>
               <Text style={styles.dlCheckUpdateText}>
                 {irx1Checking ? 'Checking…' : 'Check for updates'}
               </Text>
@@ -1053,6 +1073,7 @@ const styles = StyleSheet.create({
   modelActions: { flexDirection: 'row', gap: spacing.sm },
   btn: { flex: 1, paddingVertical: spacing.sm, borderRadius: borderRadius.md, alignItems: 'center' },
   loadBtn: { backgroundColor: colors.primary },
+  refreshModelBtn: { backgroundColor: colors.success },
   unloadBtn: { backgroundColor: colors.warning },
   deleteBtn: { backgroundColor: colors.error },
   btnText: { color: '#fff', fontWeight: '700', fontSize: fontSizes.sm },
