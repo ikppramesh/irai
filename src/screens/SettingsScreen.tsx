@@ -92,8 +92,8 @@ export const SettingsScreen: React.FC = () => {
             systemPrompt: 'You are irai, a helpful, harmless, and honest AI assistant running completely offline on this device. Be concise and helpful.',
             temperature: 0.7,
             topP: 0.9,
-            maxTokens: 512,
-            contextLength: 2048,
+            maxTokens: 1536,
+            contextLength: 4096,
           }),
       },
     ]);
@@ -134,7 +134,7 @@ export const SettingsScreen: React.FC = () => {
               label="Max Tokens"
               value={settings.maxTokens}
               min={64}
-              max={2048}
+              max={4096}
               step={64}
               onChange={(v) => updateSettings({ maxTokens: Math.round(v) })}
             />
