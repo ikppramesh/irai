@@ -51,6 +51,8 @@
     "node": ">=18"
   },
   "overrides": {
-    "image-size": "2.0.3"
+    "image-size": "2.0.3",
+    "decode-uri-component": "0.5.1",
+    "fast-xml-parser": "5.12.1"
   }
 }
